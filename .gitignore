@@ -9,6 +9,8 @@
 .env
 .env.backup
 .env.production
+.env.local
+.env.testing
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -21,3 +23,36 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# PHPStorm
+.idea/
+
+# Logs
+*.log
+storage/logs/*.log
+
+# Database
+*.sqlite
+*.sqlite3
+database/database.sqlite
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Coverage reports
+coverage/
+.coverage
+htmlcov/
