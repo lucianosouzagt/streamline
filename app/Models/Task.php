@@ -59,7 +59,7 @@ class Task extends Model
     public function scopeOverdue($query)
     {
         return $query->where('due_date', '<', now())
-                    ->whereNotIn('status', ['done', 'cancelled']);
+            ->whereNotIn('status', ['done', 'cancelled']);
     }
 
     /**

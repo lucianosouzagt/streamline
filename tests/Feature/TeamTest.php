@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
-use App\Models\Role;
-use App\Models\Permission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
@@ -17,7 +17,7 @@ class TeamTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Criar permissões básicas
         $permissions = [
             'teams.view',
@@ -31,7 +31,7 @@ class TeamTest extends TestCase
             Permission::create([
                 'name' => $permission,
                 'display_name' => ucfirst(str_replace('.', ' ', $permission)),
-                'description' => 'Permission to ' . str_replace('.', ' ', $permission),
+                'description' => 'Permission to '.str_replace('.', ' ', $permission),
                 'resource' => explode('.', $permission)[0],
                 'action' => explode('.', $permission)[1] ?? 'manage',
             ]);
@@ -41,7 +41,7 @@ class TeamTest extends TestCase
         $adminRole = Role::create([
             'name' => 'admin',
             'display_name' => 'Administrator',
-            'description' => 'Full system access'
+            'description' => 'Full system access',
         ]);
         $adminRole->permissions()->attach(Permission::all());
     }
@@ -68,7 +68,7 @@ class TeamTest extends TestCase
                             'created_at',
                             'updated_at',
                             'owner',
-                        ]
+                        ],
                     ],
                     'first_page_url',
                     'from',
@@ -80,8 +80,8 @@ class TeamTest extends TestCase
                     'per_page',
                     'prev_page_url',
                     'to',
-                    'total'
-                ]
+                    'total',
+                ],
             ]);
     }
 
@@ -108,7 +108,7 @@ class TeamTest extends TestCase
                     'description',
                     'is_active',
                     'owner',
-                ]
+                ],
             ]);
 
         $this->assertDatabaseHas('teams', [
@@ -150,7 +150,7 @@ class TeamTest extends TestCase
                     'is_active',
                     'owner',
                     'projects',
-                ]
+                ],
             ]);
     }
 

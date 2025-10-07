@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Task;
 use App\Models\Project;
+use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,9 +20,9 @@ class TaskController extends Controller
         $query = Task::with(['project', 'creator', 'users'])
             ->whereHas('project', function ($q) {
                 $q->where('owner_id', Auth::id())
-                  ->orWhereHas('teams', function ($teamQuery) {
-                      $teamQuery->where('owner_id', Auth::id());
-                  });
+                    ->orWhereHas('teams', function ($teamQuery) {
+                        $teamQuery->where('owner_id', Auth::id());
+                    });
             })
             ->orWhere('created_by', Auth::id())
             ->orWhereHas('users', function ($q) {
@@ -69,8 +69,8 @@ class TaskController extends Controller
 
             // Verifica se o usuário tem acesso ao projeto
             $project = Project::findOrFail($validated['project_id']);
-            if ($project->owner_id !== Auth::id() && 
-                !$project->teams()->where('owner_id', Auth::id())->exists()) {
+            if ($project->owner_id !== Auth::id() &&
+                ! $project->teams()->where('owner_id', Auth::id())->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Você não tem permissão para criar tarefas neste projeto',
@@ -88,7 +88,7 @@ class TaskController extends Controller
             ]);
 
             // Atribui usuários à tarefa se especificado
-            if (!empty($validated['assigned_users'])) {
+            if (! empty($validated['assigned_users'])) {
                 $task->users()->attach($validated['assigned_users']);
             }
 
@@ -99,7 +99,6 @@ class TaskController extends Controller
                 'message' => 'Tarefa criada com sucesso',
                 'data' => $task,
             ], 201);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -115,7 +114,7 @@ class TaskController extends Controller
     public function show(Task $task): JsonResponse
     {
         // Verifica se o usuário tem acesso à tarefa
-        if (!$this->userCanAccessTask($task)) {
+        if (! $this->userCanAccessTask($task)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Acesso negado',
@@ -136,7 +135,7 @@ class TaskController extends Controller
     public function update(Request $request, Task $task): JsonResponse
     {
         // Verifica se o usuário pode editar a tarefa
-        if (!$this->userCanEditTask($task)) {
+        if (! $this->userCanEditTask($task)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Você não tem permissão para editar esta tarefa',
@@ -168,7 +167,6 @@ class TaskController extends Controller
                 'message' => 'Tarefa atualizada com sucesso',
                 'data' => $task,
             ]);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -184,7 +182,7 @@ class TaskController extends Controller
     public function destroy(Task $task): JsonResponse
     {
         // Verifica se o usuário pode excluir a tarefa
-        if (!$this->userCanEditTask($task)) {
+        if (! $this->userCanEditTask($task)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Você não tem permissão para excluir esta tarefa',
@@ -206,7 +204,7 @@ class TaskController extends Controller
      */
     public function assignUser(Request $request, Task $task): JsonResponse
     {
-        if (!$this->userCanEditTask($task)) {
+        if (! $this->userCanEditTask($task)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Você não tem permissão para atribuir usuários a esta tarefa',
@@ -219,7 +217,7 @@ class TaskController extends Controller
         ]);
 
         $task->users()->syncWithoutDetaching([
-            $validated['user_id'] => ['role' => $validated['role'] ?? 'assignee']
+            $validated['user_id'] => ['role' => $validated['role'] ?? 'assignee'],
         ]);
 
         return response()->json([
@@ -233,7 +231,7 @@ class TaskController extends Controller
      */
     public function unassignUser(Request $request, Task $task): JsonResponse
     {
-        if (!$this->userCanEditTask($task)) {
+        if (! $this->userCanEditTask($task)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Você não tem permissão para remover usuários desta tarefa',
@@ -258,8 +256,8 @@ class TaskController extends Controller
     public function byStatus(string $status): JsonResponse
     {
         $validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
-        
-        if (!in_array($status, $validStatuses)) {
+
+        if (! in_array($status, $validStatuses)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Status inválido',
@@ -269,9 +267,9 @@ class TaskController extends Controller
         $tasks = Task::with(['project', 'creator', 'users'])
             ->whereHas('project', function ($q) {
                 $q->where('owner_id', Auth::id())
-                  ->orWhereHas('teams', function ($teamQuery) {
-                      $teamQuery->where('owner_id', Auth::id());
-                  });
+                    ->orWhereHas('teams', function ($teamQuery) {
+                        $teamQuery->where('owner_id', Auth::id());
+                    });
             })
             ->where('status', $status)
             ->paginate(15);

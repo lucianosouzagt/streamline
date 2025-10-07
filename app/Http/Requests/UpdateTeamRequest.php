@@ -13,6 +13,7 @@ class UpdateTeamRequest extends FormRequest
     public function authorize(): bool
     {
         $team = $this->route('team');
+
         return $team && ($team->owner_id === $this->user()->id || $this->user()->hasPermission('teams.update'));
     }
 
@@ -24,7 +25,7 @@ class UpdateTeamRequest extends FormRequest
     public function rules(): array
     {
         $team = $this->route('team');
-        
+
         return [
             'name' => [
                 'sometimes',

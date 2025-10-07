@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class RolePermissionSeeder extends Seeder
@@ -21,25 +20,25 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'users.create', 'display_name' => 'Criar Usuários', 'description' => 'Pode criar usuários', 'resource' => 'users', 'action' => 'create'],
             ['name' => 'users.edit', 'display_name' => 'Editar Usuários', 'description' => 'Pode editar usuários', 'resource' => 'users', 'action' => 'edit'],
             ['name' => 'users.delete', 'display_name' => 'Deletar Usuários', 'description' => 'Pode deletar usuários', 'resource' => 'users', 'action' => 'delete'],
-            
+
             // Teams
             ['name' => 'teams.view', 'display_name' => 'Visualizar Times', 'description' => 'Pode visualizar times', 'resource' => 'teams', 'action' => 'view'],
             ['name' => 'teams.create', 'display_name' => 'Criar Times', 'description' => 'Pode criar times', 'resource' => 'teams', 'action' => 'create'],
             ['name' => 'teams.edit', 'display_name' => 'Editar Times', 'description' => 'Pode editar times', 'resource' => 'teams', 'action' => 'edit'],
             ['name' => 'teams.delete', 'display_name' => 'Deletar Times', 'description' => 'Pode deletar times', 'resource' => 'teams', 'action' => 'delete'],
-            
+
             // Projects
             ['name' => 'projects.view', 'display_name' => 'Visualizar Projetos', 'description' => 'Pode visualizar projetos', 'resource' => 'projects', 'action' => 'view'],
             ['name' => 'projects.create', 'display_name' => 'Criar Projetos', 'description' => 'Pode criar projetos', 'resource' => 'projects', 'action' => 'create'],
             ['name' => 'projects.edit', 'display_name' => 'Editar Projetos', 'description' => 'Pode editar projetos', 'resource' => 'projects', 'action' => 'edit'],
             ['name' => 'projects.delete', 'display_name' => 'Deletar Projetos', 'description' => 'Pode deletar projetos', 'resource' => 'projects', 'action' => 'delete'],
-            
+
             // Tasks
             ['name' => 'tasks.view', 'display_name' => 'Visualizar Tarefas', 'description' => 'Pode visualizar tarefas', 'resource' => 'tasks', 'action' => 'view'],
             ['name' => 'tasks.create', 'display_name' => 'Criar Tarefas', 'description' => 'Pode criar tarefas', 'resource' => 'tasks', 'action' => 'create'],
             ['name' => 'tasks.edit', 'display_name' => 'Editar Tarefas', 'description' => 'Pode editar tarefas', 'resource' => 'tasks', 'action' => 'edit'],
             ['name' => 'tasks.delete', 'display_name' => 'Deletar Tarefas', 'description' => 'Pode deletar tarefas', 'resource' => 'tasks', 'action' => 'delete'],
-            
+
             // Roles & Permissions
             ['name' => 'roles.view', 'display_name' => 'Visualizar Roles', 'description' => 'Pode visualizar roles', 'resource' => 'roles', 'action' => 'view'],
             ['name' => 'roles.create', 'display_name' => 'Criar Roles', 'description' => 'Pode criar roles', 'resource' => 'roles', 'action' => 'create'],

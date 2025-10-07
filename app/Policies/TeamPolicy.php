@@ -21,7 +21,7 @@ class TeamPolicy
     public function view(User $user, Team $team): bool
     {
         // Usuário pode ver se é o dono do time ou tem permissão geral
-        return $team->owner_id === $user->id || 
+        return $team->owner_id === $user->id ||
                $user->hasPermission('teams.view') ||
                $team->projects()->whereHas('owner', function ($query) use ($user) {
                    $query->where('id', $user->id);
@@ -42,7 +42,7 @@ class TeamPolicy
     public function update(User $user, Team $team): bool
     {
         // Apenas o dono pode editar ou usuário com permissão admin
-        return $team->owner_id === $user->id || 
+        return $team->owner_id === $user->id ||
                $user->hasPermission('teams.update');
     }
 
@@ -52,7 +52,7 @@ class TeamPolicy
     public function delete(User $user, Team $team): bool
     {
         // Apenas o dono pode excluir ou usuário com permissão admin
-        return $team->owner_id === $user->id || 
+        return $team->owner_id === $user->id ||
                $user->hasPermission('teams.delete');
     }
 
@@ -61,7 +61,7 @@ class TeamPolicy
      */
     public function manageProjects(User $user, Team $team): bool
     {
-        return $team->owner_id === $user->id || 
+        return $team->owner_id === $user->id ||
                $user->hasPermission('teams.manage_projects');
     }
 }

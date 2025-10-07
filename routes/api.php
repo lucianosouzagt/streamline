@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -16,7 +16,7 @@ Route::get('/user', function (Request $request) {
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
-    
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
@@ -25,7 +25,9 @@ Route::prefix('auth')->group(function () {
 
 // Rotas protegidas por autenticação
 Route::middleware('auth:sanctum')->group(function () {
-    
+    // Rota para listar todas as roles
+    Route::get('/roles', [UserController::class, 'listRoles']);
+
     // Rotas de usuários
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
@@ -38,6 +40,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tasks', [UserController::class, 'myTasks']);
         Route::delete('/account', [UserController::class, 'deleteAccount']);
         Route::get('/{user}', [UserController::class, 'show']);
+
+        // Gerenciamento de roles
+        Route::post('/roles/list', [UserController::class, 'getRoles']);
+        Route::post('/roles/assign', [UserController::class, 'assignRole']);
+        Route::post('/roles/remove', [UserController::class, 'removeRole']);
     });
 
     // Rotas de times
@@ -47,7 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{team}', [TeamController::class, 'show']);
         Route::put('/{team}', [TeamController::class, 'update']);
         Route::delete('/{team}', [TeamController::class, 'destroy']);
-        
+
         // Gerenciamento de projetos no time
         Route::post('/{team}/projects', [TeamController::class, 'addProject']);
         Route::delete('/{team}/projects', [TeamController::class, 'removeProject']);
@@ -72,7 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{task}', [TaskController::class, 'show']);
         Route::put('/{task}', [TaskController::class, 'update']);
         Route::delete('/{task}', [TaskController::class, 'destroy']);
-        
+
         // Gerenciamento de usuários na tarefa
         Route::post('/{task}/assign', [TaskController::class, 'assignUser']);
         Route::delete('/{task}/unassign', [TaskController::class, 'unassignUser']);

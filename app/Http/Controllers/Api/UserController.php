@@ -8,8 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -25,7 +25,7 @@ class UserController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -70,7 +70,7 @@ class UserController extends Controller
         try {
             $validated = $request->validate([
                 'name' => 'sometimes|required|string|max:255',
-                'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . Auth::id(),
+                'email' => 'sometimes|required|string|email|max:255|unique:users,email,'.Auth::id(),
             ]);
 
             $user = Auth::user();
@@ -81,7 +81,6 @@ class UserController extends Controller
                 'message' => 'Perfil atualizado com sucesso',
                 'data' => $user,
             ]);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -105,7 +104,7 @@ class UserController extends Controller
             $user = Auth::user();
 
             // Verifica a senha atual
-            if (!Hash::check($validated['current_password'], $user->password)) {
+            if (! Hash::check($validated['current_password'], $user->password)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Senha atual incorreta',
@@ -120,7 +119,6 @@ class UserController extends Controller
                 'success' => true,
                 'message' => 'Senha atualizada com sucesso',
             ]);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -149,7 +147,7 @@ class UserController extends Controller
     public function myProjects(): JsonResponse
     {
         $user = Auth::user();
-        
+
         $projects = $user->ownedProjects()
             ->with(['teams', 'tasks'])
             ->withCount(['tasks', 'teams'])
@@ -167,7 +165,7 @@ class UserController extends Controller
     public function myTeams(): JsonResponse
     {
         $user = Auth::user();
-        
+
         $teams = $user->ownedTeams()
             ->with(['projects'])
             ->withCount(['projects'])
@@ -185,7 +183,7 @@ class UserController extends Controller
     public function myTasks(Request $request): JsonResponse
     {
         $user = Auth::user();
-        
+
         $query = $user->tasks()->with(['project', 'creator']);
 
         // Filtros opcionais
@@ -267,7 +265,7 @@ class UserController extends Controller
         $user = Auth::user();
 
         // Verifica a senha
-        if (!Hash::check($validated['password'], $user->password)) {
+        if (! Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Senha incorreta',
@@ -284,10 +282,10 @@ class UserController extends Controller
 
         // Remove tokens de acesso
         $user->tokens()->delete();
-        
+
         // Remove associações com tarefas
         $user->tasks()->detach();
-        
+
         // Deleta o usuário
         $user->delete();
 
@@ -295,5 +293,139 @@ class UserController extends Controller
             'success' => true,
             'message' => 'Conta excluída com sucesso',
         ]);
+    }
+
+    /**
+     * Lista roles de um usuário específico
+     */
+    public function getRoles(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            $user = User::findOrFail($request->user_id);
+            $user->load('roles');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Roles do usuário listadas com sucesso',
+                'data' => $user->roles,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dados inválidos',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Adiciona uma role a um usuário
+     */
+    public function assignRole(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'role_id' => 'required|exists:roles,id',
+            ]);
+
+            $user = User::findOrFail($request->user_id);
+
+            // Verifica se o usuário já possui a role
+            if ($user->roles()->where('role_id', $request->role_id)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuário já possui esta role',
+                ], 422);
+            }
+
+            $user->roles()->attach($request->role_id);
+
+            $role = \App\Models\Role::find($request->role_id);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Role '{$role->display_name}' adicionada ao usuário com sucesso",
+                'data' => [
+                    'user' => $user->name,
+                    'role' => $role->display_name,
+                ],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dados inválidos',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Remove uma role de um usuário
+     */
+    public function removeRole(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'role_id' => 'required|exists:roles,id',
+            ]);
+
+            $user = User::findOrFail($request->user_id);
+            $role = \App\Models\Role::find($request->role_id);
+
+            // Verifica se o usuário possui a role
+            if (! $user->roles()->where('role_id', $request->role_id)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuário não possui esta role',
+                ], 422);
+            }
+
+            $user->roles()->detach($request->role_id);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Role '{$role->display_name}' removida do usuário com sucesso",
+                'data' => [
+                    'user' => $user->name,
+                    'role' => $role->display_name,
+                ],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dados inválidos',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Lista todas as roles cadastradas no sistema
+     */
+    public function listRoles(): JsonResponse
+    {
+        try {
+            $roles = \App\Models\Role::select(['id', 'name', 'display_name', 'description', 'is_system'])
+                ->with(['permissions:id,name,display_name'])
+                ->orderBy('display_name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Roles listadas com sucesso',
+                'data' => $roles,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao buscar roles',
+            ], 500);
+        }
     }
 }

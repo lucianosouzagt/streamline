@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -47,7 +46,7 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        if (! Auth::attempt($request->only('email', 'password'))) {
             return response()->json([
                 'message' => 'Credenciais inválidas',
             ], 401);
@@ -67,15 +66,35 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $token = $request->user()->currentAccessToken();
-        
-        if ($token) {
-            $token->delete();
-        }
+        try {
+            $user = $request->user();
 
-        return response()->json([
-            'message' => 'Logout realizado com sucesso',
-        ]);
+            if (! $user) {
+                return response()->json([
+                    'message' => 'Usuário não autenticado',
+                ], 401);
+            }
+
+            $token = $user->currentAccessToken();
+
+            if ($token) {
+                $token->delete();
+            }
+
+            // Sempre retorna sucesso, independente se o token existia ou não
+            return response()->json([
+                'message' => 'Logout realizado com sucesso',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erro durante logout: '.$e->getMessage(), [
+                'user_id' => $request->user()?->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Erro interno durante logout',
+            ], 500);
+        }
     }
 
     /**

@@ -21,15 +21,15 @@ class TeamResource extends JsonResource
             'is_active' => $this->is_active,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
-            
+
             // Relacionamentos
             'owner' => new UserResource($this->whenLoaded('owner')),
             'projects' => ProjectResource::collection($this->whenLoaded('projects')),
-            
+
             // Contadores
             'projects_count' => $this->when(
                 $this->relationLoaded('projects'),
-                fn() => $this->projects->count()
+                fn () => $this->projects->count()
             ),
         ];
     }

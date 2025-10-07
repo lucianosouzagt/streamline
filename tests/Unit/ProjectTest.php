@@ -3,9 +3,9 @@
 namespace Tests\Unit;
 
 use App\Models\Project;
-use App\Models\User;
-use App\Models\Team;
 use App\Models\Task;
+use App\Models\Team;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,7 +17,7 @@ class ProjectTest extends TestCase
     {
         $user = User::factory()->create();
         $project = Project::factory()->create(['owner_id' => $user->id]);
-        
+
         $this->assertInstanceOf(User::class, $project->owner);
         $this->assertEquals($user->id, $project->owner->id);
     }
@@ -27,9 +27,9 @@ class ProjectTest extends TestCase
         $project = Project::factory()->create();
         $team1 = Team::factory()->create();
         $team2 = Team::factory()->create();
-        
+
         $project->teams()->attach([$team1->id, $team2->id]);
-        
+
         $this->assertEquals(2, $project->teams->count());
         $this->assertTrue($project->teams->contains($team1));
         $this->assertTrue($project->teams->contains($team2));
@@ -40,7 +40,7 @@ class ProjectTest extends TestCase
         $project = Project::factory()->create();
         $task1 = Task::factory()->create(['project_id' => $project->id]);
         $task2 = Task::factory()->create(['project_id' => $project->id]);
-        
+
         $this->assertEquals(2, $project->tasks->count());
         $this->assertTrue($project->tasks->contains($task1));
         $this->assertTrue($project->tasks->contains($task2));
@@ -61,14 +61,14 @@ class ProjectTest extends TestCase
     public function test_project_status_defaults_to_planning(): void
     {
         $project = Project::factory()->create();
-        
+
         $this->assertEquals('planning', $project->status);
     }
 
     public function test_project_valid_status_values(): void
     {
         $validStatuses = ['planning', 'active', 'completed', 'on_hold', 'cancelled'];
-        
+
         foreach ($validStatuses as $status) {
             $project = Project::factory()->create(['status' => $status]);
             $this->assertEquals($status, $project->status);
@@ -78,7 +78,7 @@ class ProjectTest extends TestCase
     public function test_project_description_can_be_null(): void
     {
         $project = Project::factory()->create(['description' => null]);
-        
+
         $this->assertNull($project->description);
     }
 
@@ -86,9 +86,9 @@ class ProjectTest extends TestCase
     {
         $project = Project::factory()->create([
             'start_date' => null,
-            'end_date' => null
+            'end_date' => null,
         ]);
-        
+
         $this->assertNull($project->start_date);
         $this->assertNull($project->end_date);
     }
@@ -96,7 +96,7 @@ class ProjectTest extends TestCase
     public function test_project_has_timestamps(): void
     {
         $project = Project::factory()->create();
-        
+
         $this->assertNotNull($project->created_at);
         $this->assertNotNull($project->updated_at);
     }
@@ -104,19 +104,19 @@ class ProjectTest extends TestCase
     public function test_project_can_calculate_progress(): void
     {
         $project = Project::factory()->create();
-        
+
         // Criar tarefas com diferentes status
         Task::factory()->create(['project_id' => $project->id, 'status' => 'done']);
         Task::factory()->create(['project_id' => $project->id, 'status' => 'done']);
         Task::factory()->create(['project_id' => $project->id, 'status' => 'in_progress']);
         Task::factory()->create(['project_id' => $project->id, 'status' => 'todo']);
-        
+
         $project->load('tasks');
-        
+
         $completedTasks = $project->tasks->where('status', 'done')->count();
         $totalTasks = $project->tasks->count();
         $expectedProgress = ($completedTasks / $totalTasks) * 100;
-        
+
         $this->assertEquals(4, $totalTasks);
         $this->assertEquals(2, $completedTasks);
         $this->assertEquals(50, $expectedProgress);
@@ -127,10 +127,10 @@ class ProjectTest extends TestCase
         $project1 = Project::factory()->create();
         $project2 = Project::factory()->create();
         $team = Team::factory()->create();
-        
+
         $project1->teams()->attach($team);
         $project2->teams()->attach($team);
-        
+
         $this->assertTrue($project1->teams->contains($team));
         $this->assertTrue($project2->teams->contains($team));
         $this->assertEquals(1, $project1->teams->count());
@@ -141,11 +141,11 @@ class ProjectTest extends TestCase
     {
         $project = Project::factory()->create();
         $task = Task::factory()->create(['project_id' => $project->id]);
-        
+
         $this->assertDatabaseHas('tasks', ['id' => $task->id]);
-        
+
         $project->delete();
-        
+
         $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
     }
 }

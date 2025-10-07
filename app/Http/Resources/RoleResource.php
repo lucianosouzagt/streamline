@@ -20,14 +20,14 @@ class RoleResource extends JsonResource
             'description' => $this->description,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
-            
+
             // Relacionamentos
             'permissions' => PermissionResource::collection($this->whenLoaded('permissions')),
-            
+
             // Contadores
             'permissions_count' => $this->when(
                 $this->relationLoaded('permissions'),
-                fn() => $this->permissions->count()
+                fn () => $this->permissions->count()
             ),
         ];
     }

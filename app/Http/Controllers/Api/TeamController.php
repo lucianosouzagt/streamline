@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Team;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class TeamController extends Controller
 {
     use AuthorizesRequests;
+
     /**
      * Lista todos os times do usuário autenticado
      */
@@ -60,7 +61,6 @@ class TeamController extends Controller
                 'message' => 'Time criado com sucesso',
                 'data' => $team,
             ], 201);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -76,8 +76,8 @@ class TeamController extends Controller
     public function show(Team $team): JsonResponse
     {
         // Verifica se o usuário tem acesso ao time
-        if ($team->owner_id !== Auth::id() && 
-            !$team->projects()->whereHas('owner', function ($query) {
+        if ($team->owner_id !== Auth::id() &&
+            ! $team->projects()->whereHas('owner', function ($query) {
                 $query->where('id', Auth::id());
             })->exists()) {
             return response()->json([
@@ -122,7 +122,6 @@ class TeamController extends Controller
                 'message' => 'Time atualizado com sucesso',
                 'data' => $team,
             ]);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,

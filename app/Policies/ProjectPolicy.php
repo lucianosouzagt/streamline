@@ -21,7 +21,7 @@ class ProjectPolicy
     public function view(User $user, Project $project): bool
     {
         // Usuário pode ver se é o dono do projeto ou membro de um time associado
-        return $project->owner_id === $user->id || 
+        return $project->owner_id === $user->id ||
                $user->hasPermission('projects.view') ||
                $project->teams()->where('owner_id', $user->id)->exists();
     }
@@ -40,7 +40,7 @@ class ProjectPolicy
     public function update(User $user, Project $project): bool
     {
         // Apenas o dono pode editar ou usuário com permissão admin
-        return $project->owner_id === $user->id || 
+        return $project->owner_id === $user->id ||
                $user->hasPermission('projects.update');
     }
 
@@ -50,7 +50,7 @@ class ProjectPolicy
     public function delete(User $user, Project $project): bool
     {
         // Apenas o dono pode excluir ou usuário com permissão admin
-        return $project->owner_id === $user->id || 
+        return $project->owner_id === $user->id ||
                $user->hasPermission('projects.delete');
     }
 
@@ -59,7 +59,7 @@ class ProjectPolicy
      */
     public function manageTasks(User $user, Project $project): bool
     {
-        return $project->owner_id === $user->id || 
+        return $project->owner_id === $user->id ||
                $project->teams()->where('owner_id', $user->id)->exists() ||
                $user->hasPermission('projects.manage_tasks');
     }

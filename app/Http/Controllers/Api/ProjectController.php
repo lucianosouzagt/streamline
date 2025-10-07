@@ -56,7 +56,6 @@ class ProjectController extends Controller
                 'message' => 'Projeto criado com sucesso',
                 'data' => $project,
             ], 201);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -72,8 +71,8 @@ class ProjectController extends Controller
     public function show(Project $project): JsonResponse
     {
         // Verifica se o usuário tem acesso ao projeto
-        if ($project->owner_id !== Auth::id() && 
-            !$project->teams()->where('owner_id', Auth::id())->exists()) {
+        if ($project->owner_id !== Auth::id() &&
+            ! $project->teams()->where('owner_id', Auth::id())->exists()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Acesso negado',
@@ -118,7 +117,6 @@ class ProjectController extends Controller
                 'message' => 'Projeto atualizado com sucesso',
                 'data' => $project,
             ]);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -165,8 +163,8 @@ class ProjectController extends Controller
     public function byStatus(string $status): JsonResponse
     {
         $validStatuses = ['planning', 'active', 'on_hold', 'completed', 'cancelled'];
-        
-        if (!in_array($status, $validStatuses)) {
+
+        if (! in_array($status, $validStatuses)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Status inválido',
@@ -190,8 +188,8 @@ class ProjectController extends Controller
     public function statistics(Project $project): JsonResponse
     {
         // Verifica se o usuário tem acesso ao projeto
-        if ($project->owner_id !== Auth::id() && 
-            !$project->teams()->where('owner_id', Auth::id())->exists()) {
+        if ($project->owner_id !== Auth::id() &&
+            ! $project->teams()->where('owner_id', Auth::id())->exists()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Acesso negado',
@@ -202,7 +200,7 @@ class ProjectController extends Controller
         $completedTasks = $project->tasks()->where('status', 'completed')->count();
         $pendingTasks = $project->tasks()->where('status', 'pending')->count();
         $inProgressTasks = $project->tasks()->where('status', 'in_progress')->count();
-        
+
         $progress = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 2) : 0;
 
         $statistics = [

@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
-use App\Models\Project;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,7 +16,7 @@ class TeamTest extends TestCase
     {
         $user = User::factory()->create();
         $team = Team::factory()->create(['owner_id' => $user->id]);
-        
+
         $this->assertInstanceOf(User::class, $team->owner);
         $this->assertEquals($user->id, $team->owner->id);
     }
@@ -26,9 +26,9 @@ class TeamTest extends TestCase
         $team = Team::factory()->create();
         $project1 = Project::factory()->create();
         $project2 = Project::factory()->create();
-        
+
         $team->projects()->attach([$project1->id, $project2->id]);
-        
+
         $this->assertEquals(2, $team->projects->count());
         $this->assertTrue($team->projects->contains($project1));
         $this->assertTrue($team->projects->contains($project2));
@@ -49,28 +49,28 @@ class TeamTest extends TestCase
     public function test_team_is_active_defaults_to_true(): void
     {
         $team = Team::factory()->create();
-        
+
         $this->assertTrue($team->is_active);
     }
 
     public function test_team_can_be_inactive(): void
     {
         $team = Team::factory()->create(['is_active' => false]);
-        
+
         $this->assertFalse($team->is_active);
     }
 
     public function test_team_description_can_be_null(): void
     {
         $team = Team::factory()->create(['description' => null]);
-        
+
         $this->assertNull($team->description);
     }
 
     public function test_team_has_timestamps(): void
     {
         $team = Team::factory()->create();
-        
+
         $this->assertNotNull($team->created_at);
         $this->assertNotNull($team->updated_at);
     }
@@ -79,11 +79,11 @@ class TeamTest extends TestCase
     {
         $team = Team::factory()->create();
         $projects = Project::factory()->count(3)->create();
-        
+
         $team->projects()->attach($projects->pluck('id'));
-        
+
         $this->assertEquals(3, $team->projects->count());
-        
+
         foreach ($projects as $project) {
             $this->assertTrue($team->projects->contains($project));
         }
@@ -94,10 +94,10 @@ class TeamTest extends TestCase
         $team1 = Team::factory()->create();
         $team2 = Team::factory()->create();
         $project = Project::factory()->create();
-        
+
         $team1->projects()->attach($project);
         $team2->projects()->attach($project);
-        
+
         $this->assertTrue($team1->projects->contains($project));
         $this->assertTrue($team2->projects->contains($project));
         $this->assertEquals(1, $team1->projects->count());

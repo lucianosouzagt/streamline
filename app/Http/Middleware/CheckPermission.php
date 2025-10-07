@@ -16,7 +16,7 @@ class CheckPermission
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Não autenticado',
@@ -25,10 +25,10 @@ class CheckPermission
 
         $user = Auth::user();
 
-        if (!$user->hasPermission($permission)) {
+        if (! $user->hasPermission($permission)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Acesso negado. Permissão necessária: ' . $permission,
+                'message' => 'Acesso negado. Permissão necessária: '.$permission,
             ], 403);
         }
 
