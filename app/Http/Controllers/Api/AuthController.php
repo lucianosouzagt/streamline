@@ -32,10 +32,8 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Usuário registrado com sucesso',
             'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
+            'token' => $token,
         ], 201);
     }
 
@@ -50,19 +48,17 @@ class AuthController extends Controller
         ]);
 
         if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['As credenciais fornecidas estão incorretas.'],
-            ]);
+            return response()->json([
+                'message' => 'Credenciais inválidas',
+            ], 401);
         }
 
         $user = User::where('email', $request->email)->first();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login realizado com sucesso',
             'user' => $user,
-            'access_token' => $token,
-            'token_type' => 'Bearer',
+            'token' => $token,
         ]);
     }
 
@@ -71,7 +67,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        $token = $request->user()->currentAccessToken();
+        
+        if ($token) {
+            $token->delete();
+        }
 
         return response()->json([
             'message' => 'Logout realizado com sucesso',

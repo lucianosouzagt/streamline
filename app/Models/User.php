@@ -77,6 +77,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Task::class)->withPivot('role')->withTimestamps();
     }
 
+    public function assignedTasks(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class)->withPivot('role')->withTimestamps();
+    }
+
     /**
      * Métodos de permissão
      */
