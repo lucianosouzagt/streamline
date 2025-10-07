@@ -1,0 +1,26 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+        - config/
+        - database/
+        - routes/
+        - tests/
+
+    # Rule level (0 is the loosest and 9 is the strictest)
+    level: 8
+
+    ignoreErrors:
+        # Ignore Laravel's magic methods
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder#'
+        - '#Call to an undefined method Illuminate\\Database\\Query\\Builder#'
+
+    excludePaths:
+        - ./vendor/*
+        - ./storage/*
+        - ./bootstrap/cache/*
+
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
