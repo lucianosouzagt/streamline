@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Traits\ApiResponseTrait;
+use App\Http\Traits\CacheableTrait;
+use App\Models\Project;
 use App\Models\Team;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -12,25 +15,68 @@ use Illuminate\Validation\ValidationException;
 
 class TeamController extends Controller
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, ApiResponseTrait, CacheableTrait;
 
     /**
+     * @OA\Get(
+     *     path="/api/teams",
+     *     tags={"Teams"},
+     *     summary="Listar times",
+     *     description="Lista todos os times do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Número da página",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de times paginada",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="data",
+     *                         type="object",
+     *                         @OA\Property(
+     *                             property="data",
+     *                             type="array",
+     *                             @OA\Items(ref="#/components/schemas/Team")
+     *                         ),
+     *                         @OA\Property(property="current_page", type="integer"),
+     *                         @OA\Property(property="last_page", type="integer"),
+     *                         @OA\Property(property="per_page", type="integer"),
+     *                         @OA\Property(property="total", type="integer")
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     )
+     * )
+     * 
      * Lista todos os times do usuário autenticado
      */
     public function index(): JsonResponse
     {
-        $teams = Team::with(['owner', 'projects'])
+        $teams = Team::with(['owner:id,name', 'projects' => function ($query) {
+                $query->select('projects.id', 'projects.name', 'projects.status', 'projects.owner_id')
+                      ->with('owner:id,name');
+            }])
             ->where('owner_id', Auth::id())
             ->orWhereHas('projects.owner', function ($query) {
-                $query->where('id', Auth::id());
+                $query->where('users.id', Auth::id());
             })
             ->active()
+            ->latest()
             ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $teams,
-        ]);
+        return $this->successResponse($teams);
     }
 
     /**
@@ -54,19 +100,14 @@ class TeamController extends Controller
                 'is_active' => $validated['is_active'] ?? true,
             ]);
 
+            // Limpar cache relacionado após criação
+            $this->clearUserCache(Auth::id());
+
             $team->load(['owner', 'projects']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Time criado com sucesso',
-                'data' => $team,
-            ], 201);
+            return $this->successResponse($team, 'Time criado com sucesso', 201);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dados inválidos',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->validationErrorResponse($e->errors());
         }
     }
 
@@ -75,23 +116,21 @@ class TeamController extends Controller
      */
     public function show(Team $team): JsonResponse
     {
-        // Verifica se o usuário tem acesso ao time
-        if ($team->owner_id !== Auth::id() &&
-            ! $team->projects()->whereHas('owner', function ($query) {
-                $query->where('id', Auth::id());
-            })->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Acesso negado',
-            ], 403);
+        try {
+            // Verifica se o usuário tem acesso ao time
+            if ($team->owner_id !== Auth::id() &&
+                ! $team->projects()->whereHas('owner', function ($query) {
+                    $query->where('id', Auth::id());
+                })->exists()) {
+                return $this->forbiddenResponse();
+            }
+
+            $team->load(['owner', 'projects.tasks']);
+
+            return $this->successResponse($team);
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse();
         }
-
-        $team->load(['owner', 'projects.tasks']);
-
-        return response()->json([
-            'success' => true,
-            'data' => $team,
-        ]);
     }
 
     /**
@@ -101,10 +140,7 @@ class TeamController extends Controller
     {
         // Verifica se o usuário é o dono do time
         if ($team->owner_id !== Auth::id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apenas o dono pode editar o time',
-            ], 403);
+            return $this->forbiddenResponse('Apenas o dono pode editar o time');
         }
 
         try {
@@ -115,19 +151,15 @@ class TeamController extends Controller
             ]);
 
             $team->update($validated);
+
+            // Limpar cache relacionado após atualização
+            $this->clearUserCache($team->owner_id);
+
             $team->load(['owner', 'projects']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Time atualizado com sucesso',
-                'data' => $team,
-            ]);
+            return $this->successResponse($team, 'Time atualizado com sucesso');
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dados inválidos',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->validationErrorResponse($e->errors());
         }
     }
 
@@ -138,26 +170,20 @@ class TeamController extends Controller
     {
         // Verifica se o usuário é o dono do time
         if ($team->owner_id !== Auth::id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apenas o dono pode excluir o time',
-            ], 403);
+            return $this->forbiddenResponse('Apenas o dono pode excluir o time');
         }
 
         // Verifica se há projetos associados
         if ($team->projects()->count() > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Não é possível excluir um time com projetos associados',
-            ], 422);
+            return $this->errorResponse('Não é possível excluir um time com projetos associados', 422);
         }
+
+        // Limpar cache relacionado antes da exclusão
+        $this->clearUserCache($team->owner_id);
 
         $team->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Time excluído com sucesso',
-        ]);
+        return $this->successResponse(null, 'Time excluído com sucesso');
     }
 
     /**
@@ -166,22 +192,40 @@ class TeamController extends Controller
     public function addProject(Request $request, Team $team): JsonResponse
     {
         if ($team->owner_id !== Auth::id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apenas o dono pode gerenciar projetos do time',
-            ], 403);
+            return $this->forbiddenResponse('Apenas o dono pode gerenciar projetos do time');
         }
 
-        $validated = $request->validate([
-            'project_id' => 'required|exists:projects,id',
-        ]);
+        try {
+            $validated = $request->validate([
+                'project_id' => 'required|exists:projects,id',
+            ]);
 
-        $team->projects()->syncWithoutDetaching([$validated['project_id']]);
+            // Verificação adicional se o projeto existe e se o usuário tem acesso
+            $project = Project::find($validated['project_id']);
+            if (!$project) {
+                return $this->notFoundResponse('Projeto não encontrado');
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Projeto adicionado ao time com sucesso',
-        ]);
+            // Verifica se o usuário tem acesso ao projeto
+            if ($project->owner_id !== Auth::id()) {
+                return $this->forbiddenResponse('Você não tem permissão para adicionar este projeto ao time');
+            }
+
+            // Verifica se o projeto já está no time
+            if ($team->projects()->where('project_id', $validated['project_id'])->exists()) {
+                return $this->errorResponse('Projeto já está associado a este time', 409);
+            }
+
+            $team->projects()->syncWithoutDetaching([$validated['project_id']]);
+
+            // Limpar cache relacionado após adicionar projeto
+            $this->clearUserCache($team->owner_id);
+            $this->clearProjectCache($validated['project_id']);
+
+            return $this->successResponse(null, 'Projeto adicionado ao time com sucesso');
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e->errors());
+        }
     }
 
     /**
@@ -190,21 +234,28 @@ class TeamController extends Controller
     public function removeProject(Request $request, Team $team): JsonResponse
     {
         if ($team->owner_id !== Auth::id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apenas o dono pode gerenciar projetos do time',
-            ], 403);
+            return $this->forbiddenResponse('Apenas o dono pode gerenciar projetos do time');
         }
 
-        $validated = $request->validate([
-            'project_id' => 'required|exists:projects,id',
-        ]);
+        try {
+            $validated = $request->validate([
+                'project_id' => 'required|exists:projects,id',
+            ]);
 
-        $team->projects()->detach($validated['project_id']);
+            // Verifica se o projeto está realmente associado ao time
+            if (!$team->projects()->where('project_id', $validated['project_id'])->exists()) {
+                return $this->notFoundResponse('Projeto não está associado a este time');
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Projeto removido do time com sucesso',
-        ]);
+            $team->projects()->detach($validated['project_id']);
+
+            // Limpar cache relacionado após remover projeto
+            $this->clearUserCache($team->owner_id);
+            $this->clearProjectCache($validated['project_id']);
+
+            return $this->successResponse(null, 'Projeto removido do time com sucesso');
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e->errors());
+        }
     }
 }

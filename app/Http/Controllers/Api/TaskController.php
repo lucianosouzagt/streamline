@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Project;
+use App\Http\Traits\ApiResponseTrait;
+use App\Http\Traits\CacheableTrait;
 use App\Models\Task;
+use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,45 +14,95 @@ use Illuminate\Validation\ValidationException;
 
 class TaskController extends Controller
 {
+    use ApiResponseTrait, CacheableTrait;
     /**
+     * @OA\Get(
+     *     path="/api/tasks",
+     *     tags={"Tasks"},
+     *     summary="Listar tarefas",
+     *     description="Lista todas as tarefas do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de tarefas",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="data",
+     *                         type="array",
+     *                         @OA\Items(ref="#/components/schemas/Task")
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     )
+     * )
+     * 
      * Lista todas as tarefas do usuário autenticado
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $query = Task::with(['project', 'creator', 'users'])
-            ->whereHas('project', function ($q) {
-                $q->where('owner_id', Auth::id())
-                    ->orWhereHas('teams', function ($teamQuery) {
-                        $teamQuery->where('owner_id', Auth::id());
-                    });
+        $tasks = Task::with(['project:id,name,status', 'creator:id,name', 'users:id,name'])
+            ->where('created_by', Auth::id())
+            ->orWhereHas('users', function ($query) {
+                $query->where('user_id', Auth::id());
             })
-            ->orWhere('created_by', Auth::id())
-            ->orWhereHas('users', function ($q) {
-                $q->where('user_id', Auth::id());
-            });
+            ->latest()
+            ->get();
 
-        // Filtros opcionais
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('priority')) {
-            $query->where('priority', $request->priority);
-        }
-
-        if ($request->has('project_id')) {
-            $query->where('project_id', $request->project_id);
-        }
-
-        $tasks = $query->paginate(15);
-
-        return response()->json([
-            'success' => true,
-            'data' => $tasks,
-        ]);
+        return $this->successResponse($tasks);
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/tasks",
+     *     tags={"Tasks"},
+     *     summary="Criar tarefa",
+     *     description="Cria uma nova tarefa",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"title", "project_id"},
+     *             @OA\Property(property="title", type="string", example="Implementar autenticação"),
+     *             @OA\Property(property="description", type="string", nullable=true, example="Implementar sistema de login e registro"),
+     *             @OA\Property(property="project_id", type="integer", example=1),
+     *             @OA\Property(property="status", type="string", enum={"pending", "in_progress", "completed", "cancelled"}, example="pending"),
+     *             @OA\Property(property="priority", type="string", enum={"low", "medium", "high", "urgent"}, example="medium"),
+     *             @OA\Property(property="due_date", type="string", format="date", nullable=true),
+     *             @OA\Property(
+     *                 property="assigned_users",
+     *                 type="array",
+     *                 @OA\Items(type="integer"),
+     *                 example={1, 2}
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Tarefa criada com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/Task")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
+     * 
      * Cria uma nova tarefa
      */
     public function store(Request $request): JsonResponse
@@ -58,53 +110,43 @@ class TaskController extends Controller
         try {
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
-                'description' => 'nullable|string|max:2000',
+                'description' => 'nullable|string|max:1000',
+                'status' => 'in:todo,in_progress,review,done,cancelled',
+                'priority' => 'in:low,medium,high,urgent',
                 'project_id' => 'required|exists:projects,id',
-                'status' => 'required|in:pending,in_progress,completed,cancelled',
-                'priority' => 'required|in:low,medium,high,urgent',
                 'due_date' => 'nullable|date|after_or_equal:today',
-                'assigned_users' => 'nullable|array',
+                'assigned_users' => 'array',
                 'assigned_users.*' => 'exists:users,id',
             ]);
 
             // Verifica se o usuário tem acesso ao projeto
-            $project = Project::findOrFail($validated['project_id']);
+            $project = Project::find($validated['project_id']);
             if ($project->owner_id !== Auth::id() &&
-                ! $project->teams()->where('owner_id', Auth::id())->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Você não tem permissão para criar tarefas neste projeto',
-                ], 403);
+                ! $project->teams()->whereHas('owner', function ($query) {
+                    $query->where('id', Auth::id());
+                })->exists()) {
+                return $this->forbiddenResponse('Você não tem permissão para criar tarefas neste projeto');
             }
 
-            $task = Task::create([
-                'title' => $validated['title'],
-                'description' => $validated['description'],
-                'project_id' => $validated['project_id'],
-                'created_by' => Auth::id(),
-                'status' => $validated['status'],
-                'priority' => $validated['priority'],
-                'due_date' => $validated['due_date'],
-            ]);
+            $validated['created_by'] = Auth::id();
+            $assignedUsers = $validated['assigned_users'] ?? [];
+            unset($validated['assigned_users']);
 
-            // Atribui usuários à tarefa se especificado
-            if (! empty($validated['assigned_users'])) {
-                $task->users()->attach($validated['assigned_users']);
+            $task = Task::create($validated);
+
+            if (!empty($assignedUsers)) {
+                $task->users()->sync($assignedUsers);
             }
+
+            // Limpar cache relacionado após criação
+            $this->clearUserCache(Auth::id());
+            $this->clearProjectCache($task->project_id);
 
             $task->load(['project', 'creator', 'users']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Tarefa criada com sucesso',
-                'data' => $task,
-            ], 201);
+            return $this->successResponse($task, 'Tarefa criada com sucesso', 201);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dados inválidos',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->validationErrorResponse($e->errors());
         }
     }
 
@@ -113,20 +155,20 @@ class TaskController extends Controller
      */
     public function show(Task $task): JsonResponse
     {
-        // Verifica se o usuário tem acesso à tarefa
-        if (! $this->userCanAccessTask($task)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Acesso negado',
-            ], 403);
+        try {
+            // Verifica se o usuário tem acesso à tarefa
+            if ($task->created_by !== Auth::id() &&
+                ! $task->users()->where('user_id', Auth::id())->exists() &&
+                $task->project->owner_id !== Auth::id()) {
+                return $this->forbiddenResponse();
+            }
+
+            $task->load(['project', 'creator', 'users']);
+
+            return $this->successResponse($task);
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse();
         }
-
-        $task->load(['project', 'creator', 'users']);
-
-        return response()->json([
-            'success' => true,
-            'data' => $task,
-        ]);
     }
 
     /**
@@ -135,44 +177,39 @@ class TaskController extends Controller
     public function update(Request $request, Task $task): JsonResponse
     {
         // Verifica se o usuário pode editar a tarefa
-        if (! $this->userCanEditTask($task)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Você não tem permissão para editar esta tarefa',
-            ], 403);
+        if ($task->created_by !== Auth::id() && $task->project->owner_id !== Auth::id()) {
+            return $this->forbiddenResponse('Apenas o criador da tarefa ou dono do projeto pode editá-la');
         }
 
         try {
             $validated = $request->validate([
                 'title' => 'sometimes|required|string|max:255',
-                'description' => 'nullable|string|max:2000',
-                'status' => 'sometimes|required|in:pending,in_progress,completed,cancelled',
-                'priority' => 'sometimes|required|in:low,medium,high,urgent',
+                'description' => 'nullable|string|max:1000',
+                'status' => 'in:todo,in_progress,review,done,cancelled',
+                'priority' => 'in:low,medium,high,urgent',
                 'due_date' => 'nullable|date',
-                'assigned_users' => 'nullable|array',
+                'assigned_users' => 'array',
                 'assigned_users.*' => 'exists:users,id',
             ]);
 
-            $task->update(collect($validated)->except('assigned_users')->toArray());
+            $assignedUsers = $validated['assigned_users'] ?? null;
+            unset($validated['assigned_users']);
 
-            // Atualiza usuários atribuídos se especificado
-            if (array_key_exists('assigned_users', $validated)) {
-                $task->users()->sync($validated['assigned_users'] ?? []);
+            $task->update($validated);
+
+            if ($assignedUsers !== null) {
+                $task->users()->sync($assignedUsers);
             }
+
+            // Limpar cache relacionado após atualização
+            $this->clearUserCache($task->created_by);
+            $this->clearProjectCache($task->project_id);
 
             $task->load(['project', 'creator', 'users']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Tarefa atualizada com sucesso',
-                'data' => $task,
-            ]);
+            return $this->successResponse($task, 'Tarefa atualizada com sucesso');
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dados inválidos',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->validationErrorResponse($e->errors());
         }
     }
 
@@ -182,122 +219,45 @@ class TaskController extends Controller
     public function destroy(Task $task): JsonResponse
     {
         // Verifica se o usuário pode excluir a tarefa
-        if (! $this->userCanEditTask($task)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Você não tem permissão para excluir esta tarefa',
-            ], 403);
+        if ($task->created_by !== Auth::id() && $task->project->owner_id !== Auth::id()) {
+            return $this->forbiddenResponse('Apenas o criador da tarefa ou dono do projeto pode excluí-la');
         }
 
-        // Remove associações com usuários
-        $task->users()->detach();
+        // Limpar cache relacionado antes da exclusão
+        $this->clearUserCache($task->created_by);
+        $this->clearProjectCache($task->project_id);
+
         $task->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Tarefa excluída com sucesso',
-        ]);
+        return $this->successResponse(null, 'Tarefa excluída com sucesso');
     }
 
-    /**
-     * Atribui um usuário à tarefa
-     */
-    public function assignUser(Request $request, Task $task): JsonResponse
-    {
-        if (! $this->userCanEditTask($task)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Você não tem permissão para atribuir usuários a esta tarefa',
-            ], 403);
-        }
 
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'role' => 'nullable|string|max:50',
-        ]);
-
-        $task->users()->syncWithoutDetaching([
-            $validated['user_id'] => ['role' => $validated['role'] ?? 'assignee'],
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuário atribuído à tarefa com sucesso',
-        ]);
-    }
-
-    /**
-     * Remove um usuário da tarefa
-     */
-    public function unassignUser(Request $request, Task $task): JsonResponse
-    {
-        if (! $this->userCanEditTask($task)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Você não tem permissão para remover usuários desta tarefa',
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-        ]);
-
-        $task->users()->detach($validated['user_id']);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Usuário removido da tarefa com sucesso',
-        ]);
-    }
 
     /**
      * Lista tarefas por status
      */
     public function byStatus(string $status): JsonResponse
     {
-        $validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
+        $validStatuses = ['todo', 'in_progress', 'review', 'done', 'cancelled'];
 
-        if (! in_array($status, $validStatuses)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Status inválido',
-            ], 422);
+        if (!in_array($status, $validStatuses)) {
+            return $this->errorResponse('Status inválido', 400);
         }
 
-        $tasks = Task::with(['project', 'creator', 'users'])
-            ->whereHas('project', function ($q) {
-                $q->where('owner_id', Auth::id())
-                    ->orWhereHas('teams', function ($teamQuery) {
-                        $teamQuery->where('owner_id', Auth::id());
+        $tasks = Task::with(['project:id,name,status', 'creator:id,name', 'users:id,name'])
+            ->where('status', $status)
+            ->where(function ($query) {
+                $query->where('created_by', Auth::id())
+                    ->orWhereHas('users', function ($q) {
+                        $q->where('user_id', Auth::id());
                     });
             })
-            ->where('status', $status)
-            ->paginate(15);
+            ->latest()
+            ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $tasks,
-        ]);
+        return $this->successResponse($tasks);
     }
 
-    /**
-     * Verifica se o usuário pode acessar a tarefa
-     */
-    private function userCanAccessTask(Task $task): bool
-    {
-        return $task->created_by === Auth::id() ||
-               $task->project->owner_id === Auth::id() ||
-               $task->project->teams()->where('owner_id', Auth::id())->exists() ||
-               $task->users()->where('user_id', Auth::id())->exists();
-    }
 
-    /**
-     * Verifica se o usuário pode editar a tarefa
-     */
-    private function userCanEditTask(Task $task): bool
-    {
-        return $task->created_by === Auth::id() ||
-               $task->project->owner_id === Auth::id() ||
-               $task->project->teams()->where('owner_id', Auth::id())->exists();
-    }
 }

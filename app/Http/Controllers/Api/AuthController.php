@@ -12,6 +12,35 @@ use Illuminate\Support\Facades\Hash;
 class AuthController extends Controller
 {
     /**
+     * @OA\Post(
+     *     path="/api/register",
+     *     tags={"Auth"},
+     *     summary="Registrar novo usuário",
+     *     description="Cria uma nova conta de usuário",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name","email","password","password_confirmation"},
+     *             @OA\Property(property="name", type="string", example="João Silva"),
+     *             @OA\Property(property="email", type="string", format="email", example="joao@exemplo.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="senha123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="senha123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Usuário criado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="user", ref="#/components/schemas/User"),
+     *             @OA\Property(property="token", type="string", example="1|abc123...")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
      * Registrar novo usuário
      */
     public function register(Request $request): JsonResponse
@@ -37,6 +66,33 @@ class AuthController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/login",
+     *     tags={"Auth"},
+     *     summary="Login do usuário",
+     *     description="Autentica um usuário e retorna um token de acesso",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email","password"},
+     *             @OA\Property(property="email", type="string", format="email", example="joao@exemplo.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="senha123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="user", ref="#/components/schemas/User"),
+     *             @OA\Property(property="token", type="string", example="1|abc123...")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Credenciais inválidas"
+     *     )
+     * )
+     * 
      * Login do usuário
      */
     public function login(Request $request): JsonResponse
