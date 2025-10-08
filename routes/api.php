@@ -28,12 +28,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rota para listar todas as roles
     Route::get('/roles', [UserController::class, 'listRoles']);
 
+    // Rotas de recursos do usuário autenticado
+    Route::prefix('my')->group(function () {
+        Route::get('/tasks', [UserController::class, 'myTasks']);
+        Route::get('/projects', [UserController::class, 'myProjects']);
+        Route::get('/teams', [UserController::class, 'myTeams']);
+    });
+
     // Rotas de usuários
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store'])->middleware('permission:users.create');
         Route::get('/profile', [UserController::class, 'profile']);
         Route::put('/profile', [UserController::class, 'updateProfile']);
+        Route::post('/avatar', [UserController::class, 'updateAvatar']);
         Route::put('/password', [UserController::class, 'updatePassword']);
         Route::get('/dashboard', [UserController::class, 'dashboard']);
         Route::get('/projects', [UserController::class, 'myProjects']);
@@ -41,6 +49,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tasks', [UserController::class, 'myTasks']);
         Route::delete('/account', [UserController::class, 'deleteAccount']);
         Route::get('/{user}', [UserController::class, 'show']);
+        Route::get('/{user}/tasks', [UserController::class, 'getUserTasks']);
+        Route::get('/{user}/projects', [UserController::class, 'getUserProjects']);
+        Route::get('/{user}/teams', [UserController::class, 'getUserTeams']);
         Route::delete('/{user}', [UserController::class, 'destroy'])->middleware('permission:users.delete');
 
         // Gerenciamento de roles

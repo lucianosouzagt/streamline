@@ -12,6 +12,10 @@ namespace App\Http\Controllers\Api;
  *     @OA\Property(property="name", type="string", example="João Silva"),
  *     @OA\Property(property="email", type="string", format="email", example="joao@exemplo.com"),
  *     @OA\Property(property="email_verified_at", type="string", format="date-time", nullable=true),
+ *     @OA\Property(property="avatar", type="string", nullable=true, example="https://example.com/avatar.jpg"),
+ *     @OA\Property(property="phone", type="string", nullable=true, example="+55 11 99999-9999"),
+ *     @OA\Property(property="position", type="string", nullable=true, example="Desenvolvedor Full Stack"),
+ *     @OA\Property(property="description", type="string", nullable=true, example="Desenvolvedor experiente com foco em Laravel e Vue.js"),
  *     @OA\Property(property="created_at", type="string", format="date-time"),
  *     @OA\Property(property="updated_at", type="string", format="date-time")
  * )
