@@ -118,6 +118,35 @@ class AuthController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/logout",
+     *     tags={"Auth"},
+     *     summary="Logout do usuário",
+     *     description="Realiza o logout do usuário autenticado, invalidando o token atual",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Logout realizado com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Usuário não autenticado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Usuário não autenticado")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Erro interno durante logout",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Erro interno durante logout")
+     *         )
+     *     )
+     * )
+     * 
      * Logout do usuário
      */
     public function logout(Request $request): JsonResponse
@@ -154,6 +183,48 @@ class AuthController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/me",
+     *     tags={"Auth"},
+     *     summary="Dados do usuário autenticado",
+     *     description="Retorna informações do usuário autenticado, incluindo roles e permissões",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados do usuário autenticado",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="user",
+     *                 allOf={
+     *                     @OA\Schema(ref="#/components/schemas/User"),
+     *                     @OA\Schema(
+     *                         @OA\Property(
+     *                             property="roles",
+     *                             type="array",
+     *                             @OA\Items(
+     *                                 @OA\Property(property="id", type="integer"),
+     *                                 @OA\Property(property="name", type="string"),
+     *                                 @OA\Property(
+     *                                     property="permissions",
+     *                                     type="array",
+     *                                     @OA\Items(
+     *                                         @OA\Property(property="id", type="integer"),
+     *                                         @OA\Property(property="name", type="string")
+     *                                     )
+     *                                 )
+     *                             )
+     *                         )
+     *                     )
+     *                 }
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     )
+     * )
+     * 
      * Obter dados do usuário autenticado
      */
     public function me(Request $request): JsonResponse

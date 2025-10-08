@@ -80,6 +80,39 @@ class TeamController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/teams",
+     *     tags={"Teams"},
+     *     summary="Criar time",
+     *     description="Cria um novo time",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="name", type="string", example="Time de Desenvolvimento"),
+     *             @OA\Property(property="description", type="string", nullable=true, example="Time responsável pelo desenvolvimento do produto"),
+     *             @OA\Property(property="is_active", type="boolean", example=true)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Time criado com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/Team")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
+     * 
      * Cria um novo time
      */
     public function store(Request $request): JsonResponse
@@ -112,6 +145,41 @@ class TeamController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/teams/{id}",
+     *     tags={"Teams"},
+     *     summary="Exibir time",
+     *     description="Exibe informações de um time específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID do time",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Time encontrado",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/Team")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Acesso negado"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Time não encontrado"
+     *     )
+     * )
+     * 
      * Exibe um time específico
      */
     public function show(Team $team): JsonResponse
@@ -134,6 +202,49 @@ class TeamController extends Controller
     }
 
     /**
+     * @OA\Put(
+     *     path="/api/teams/{id}",
+     *     tags={"Teams"},
+     *     summary="Atualizar time",
+     *     description="Atualiza informações de um time existente",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID do time",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=false,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="name", type="string", example="Time de Desenvolvimento Atualizado"),
+     *             @OA\Property(property="description", type="string", nullable=true, example="Nova descrição do time"),
+     *             @OA\Property(property="is_active", type="boolean", example=true)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Time atualizado com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/Team")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Apenas o dono pode editar o time"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
      * Atualiza um time
      */
     public function update(Request $request, Team $team): JsonResponse
@@ -164,6 +275,38 @@ class TeamController extends Controller
     }
 
     /**
+     * @OA\Delete(
+     *     path="/api/teams/{id}",
+     *     tags={"Teams"},
+     *     summary="Excluir time",
+     *     description="Remove um time do sistema",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID do time",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Time excluído com sucesso",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Apenas o dono pode excluir o time"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Não é possível excluir um time com projetos associados"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Time não encontrado"
+     *     )
+     * )
+     * 
      * Remove um time
      */
     public function destroy(Team $team): JsonResponse
@@ -187,6 +330,48 @@ class TeamController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/teams/{id}/projects",
+     *     tags={"Teams"},
+     *     summary="Adicionar projeto ao time",
+     *     description="Adiciona um projeto existente ao time",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID do time",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="project_id", type="integer", example=1)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Projeto adicionado ao time com sucesso",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Apenas o dono pode gerenciar projetos do time"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Projeto não encontrado"
+     *     ),
+     *     @OA\Response(
+     *         response=409,
+     *         description="Projeto já está associado a este time"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
      * Adiciona um projeto ao time
      */
     public function addProject(Request $request, Team $team): JsonResponse
@@ -229,6 +414,44 @@ class TeamController extends Controller
     }
 
     /**
+     * @OA\Delete(
+     *     path="/api/teams/{id}/projects",
+     *     tags={"Teams"},
+     *     summary="Remover projeto do time",
+     *     description="Remove um projeto do time",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID do time",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="project_id", type="integer", example=1)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Projeto removido do time com sucesso",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Apenas o dono pode gerenciar projetos do time"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Projeto não está associado a este time"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
      * Remove um projeto do time
      */
     public function removeProject(Request $request, Team $team): JsonResponse
