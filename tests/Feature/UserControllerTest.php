@@ -133,6 +133,105 @@ class UserControllerTest extends TestCase
         ]);
     }
 
+    public function test_can_update_profile_with_new_fields()
+    {
+        $updateData = [
+            'name' => 'Nome Atualizado',
+            'email' => 'novo@email.com',
+            'phone' => '+55 11 98765-4321',
+            'position' => 'Senior Developer',
+            'description' => 'Desenvolvedor experiente em Laravel e Vue.js com mais de 5 anos de experiência.',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->putJson('/api/users/profile', $updateData);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Perfil atualizado com sucesso',
+                'data' => [
+                    'name' => $updateData['name'],
+                    'email' => $updateData['email'],
+                    'phone' => $updateData['phone'],
+                    'position' => $updateData['position'],
+                    'description' => $updateData['description'],
+                ]
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'name' => $updateData['name'],
+            'email' => $updateData['email'],
+            'phone' => $updateData['phone'],
+            'position' => $updateData['position'],
+            'description' => $updateData['description'],
+        ]);
+    }
+
+    public function test_can_update_profile_with_partial_new_fields()
+    {
+        $updateData = [
+            'position' => 'Tech Lead',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->putJson('/api/users/profile', $updateData);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Perfil atualizado com sucesso',
+                'data' => [
+                    'position' => $updateData['position'],
+                ]
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'position' => $updateData['position'],
+        ]);
+    }
+
+    public function test_profile_includes_new_fields_in_response()
+    {
+        // Atualizar o usuário com os novos campos
+        $this->user->update([
+            'avatar' => 'https://example.com/test-avatar.jpg',
+            'phone' => '+55 11 99999-8888',
+            'position' => 'Full Stack Developer',
+            'description' => 'Desenvolvedor apaixonado por tecnologia.',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/users/profile');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'id',
+                    'name',
+                    'email',
+                    'avatar',
+                    'phone',
+                    'position',
+                    'description',
+                    'created_at',
+                    'updated_at',
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'avatar' => 'https://example.com/test-avatar.jpg',
+                    'phone' => '+55 11 99999-8888',
+                    'position' => 'Full Stack Developer',
+                    'description' => 'Desenvolvedor apaixonado por tecnologia.',
+                ]
+            ]);
+    }
+
     public function test_cannot_update_profile_with_existing_email()
     {
         $existingUser = User::factory()->create();
@@ -154,6 +253,138 @@ class UserControllerTest extends TestCase
             ->assertJson([
                 'success' => false,
             ]);
+    }
+
+    public function test_can_update_avatar()
+    {
+        \Storage::fake('public');
+        
+        // Criar um arquivo fake que simula uma imagem
+        $file = \Illuminate\Http\UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
+
+        $response = $this->actingAs($this->user)
+            ->post('/api/users/avatar', ['avatar' => $file]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Avatar atualizado com sucesso',
+            ])
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'avatar'
+                ]
+            ]);
+
+        // Verifica se o arquivo foi armazenado
+        \Storage::disk('public')->assertExists('avatars/' . $file->hashName());
+        
+        // Verifica se o banco foi atualizado
+        $this->user->refresh();
+        $this->assertStringContainsString('avatars/', $this->user->avatar);
+    }
+
+    public function test_cannot_update_avatar_with_invalid_file()
+    {
+        \Storage::fake('public');
+        
+        $file = \Illuminate\Http\UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+
+        $response = $this->actingAs($this->user)
+            ->post('/api/users/avatar', ['avatar' => $file]);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => [
+                    'avatar'
+                ]
+            ])
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_cannot_update_avatar_with_large_file()
+    {
+        \Storage::fake('public');
+        
+        // Arquivo maior que 2MB (2048KB)
+        $file = \Illuminate\Http\UploadedFile::fake()->create('large-avatar.jpg', 3000, 'image/jpeg');
+
+        $response = $this->actingAs($this->user)
+            ->post('/api/users/avatar', ['avatar' => $file]);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => [
+                    'avatar'
+                ]
+            ])
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_cannot_update_avatar_without_authentication()
+    {
+        \Storage::fake('public');
+        
+        $file = \Illuminate\Http\UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
+
+        $response = $this->post('/api/users/avatar', ['avatar' => $file]);
+
+        $response->assertStatus(401);
+    }
+
+    public function test_cannot_update_avatar_without_avatar_field()
+    {
+        $response = $this->actingAs($this->user)
+            ->post('/api/users/avatar', []);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => [
+                    'avatar'
+                ]
+            ])
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_update_avatar_removes_old_file()
+    {
+        \Storage::fake('public');
+        
+        // Criar um avatar inicial
+        $oldFile = \Illuminate\Http\UploadedFile::fake()->create('old-avatar.jpg', 100, 'image/jpeg');
+        $oldPath = $oldFile->store('avatars', 'public');
+        $this->user->update(['avatar' => $oldPath]);
+        
+        // Verificar que o arquivo antigo existe
+        \Storage::disk('public')->assertExists($oldPath);
+        
+        // Fazer upload de um novo avatar
+        $newFile = \Illuminate\Http\UploadedFile::fake()->create('new-avatar.jpg', 100, 'image/jpeg');
+        
+        $response = $this->actingAs($this->user)
+            ->post('/api/users/avatar', ['avatar' => $newFile]);
+
+        $response->assertStatus(200);
+        
+        // Verificar que o arquivo antigo foi removido
+        \Storage::disk('public')->assertMissing($oldPath);
+        
+        // Verificar que o novo arquivo existe
+        \Storage::disk('public')->assertExists('avatars/' . $newFile->hashName());
     }
 
     public function test_can_update_password()
@@ -552,5 +783,467 @@ class UserControllerTest extends TestCase
 
         $response = $this->getJson('/api/users/teams');
         $response->assertStatus(401);
+    }
+
+    public function test_can_get_my_tasks()
+    {
+        $project = Project::factory()->create(['owner_id' => $this->user->id]);
+        
+        // Criar tarefa criada pelo usuário
+        $createdTask = Task::factory()->create([
+            'created_by' => $this->user->id,
+            'project_id' => $project->id,
+        ]);
+        
+        // Criar tarefa atribuída ao usuário
+        $assignedTask = Task::factory()->create(['project_id' => $project->id]);
+        $assignedTask->users()->attach($this->user, ['role' => 'assignee']);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/my/tasks');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'title',
+                        'description',
+                        'status',
+                        'priority',
+                        'project_id',
+                        'created_by',
+                        'due_date',
+                        'created_at',
+                        'updated_at',
+                    ]
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Verificar se ambas as tarefas estão na resposta
+        $taskIds = collect($response->json('data'))->pluck('id')->toArray();
+        $this->assertContains($createdTask->id, $taskIds);
+        $this->assertContains($assignedTask->id, $taskIds);
+    }
+
+    public function test_can_filter_my_tasks_by_status()
+    {
+        $project = Project::factory()->create(['owner_id' => $this->user->id]);
+        
+        Task::factory()->create([
+            'created_by' => $this->user->id,
+            'project_id' => $project->id,
+            'status' => 'todo',
+        ]);
+        
+        Task::factory()->create([
+            'created_by' => $this->user->id,
+            'project_id' => $project->id,
+            'status' => 'in_progress',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/my/tasks?status=todo');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $tasks = $response->json('data');
+        $this->assertCount(1, $tasks);
+        $this->assertEquals('todo', $tasks[0]['status']);
+    }
+
+    public function test_can_get_my_projects_with_owned_and_member()
+    {
+        // Projeto próprio
+        $ownedProject = Project::factory()->create(['owner_id' => $this->user->id]);
+        
+        // Projeto onde é membro
+        $memberProject = Project::factory()->create();
+        $this->user->projects()->attach($memberProject);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/my/projects');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'description',
+                        'status',
+                        'owner_id',
+                        'created_at',
+                        'updated_at',
+                    ]
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Verificar se ambos os projetos estão na resposta
+        $projectIds = collect($response->json('data'))->pluck('id')->toArray();
+        $this->assertContains($ownedProject->id, $projectIds);
+        $this->assertContains($memberProject->id, $projectIds);
+    }
+
+    public function test_can_filter_my_projects_by_status()
+    {
+        Project::factory()->create([
+            'owner_id' => $this->user->id,
+            'status' => 'active',
+        ]);
+        
+        Project::factory()->create([
+            'owner_id' => $this->user->id,
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/my/projects?status=active');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $projects = $response->json('data');
+        $this->assertCount(1, $projects);
+        $this->assertEquals('active', $projects[0]['status']);
+    }
+
+    public function test_can_get_my_teams_with_owned_and_member()
+    {
+        // Equipe própria
+        $ownedTeam = Team::factory()->create(['owner_id' => $this->user->id]);
+        
+        // Equipe onde é membro
+        $memberTeam = Team::factory()->create();
+        $this->user->teams()->attach($memberTeam);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/my/teams');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'description',
+                        'is_active',
+                        'owner_id',
+                        'created_at',
+                        'updated_at',
+                    ]
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Verificar se ambas as equipes estão na resposta
+        $teamIds = collect($response->json('data'))->pluck('id')->toArray();
+        $this->assertContains($ownedTeam->id, $teamIds);
+        $this->assertContains($memberTeam->id, $teamIds);
+    }
+
+    public function test_can_filter_my_teams_by_active_status()
+    {
+        Team::factory()->create([
+            'owner_id' => $this->user->id,
+            'is_active' => true,
+        ]);
+        
+        Team::factory()->create([
+            'owner_id' => $this->user->id,
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/my/teams?is_active=1');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $teams = $response->json('data');
+        $this->assertCount(1, $teams);
+        $this->assertTrue($teams[0]['is_active']);
+    }
+
+    public function test_my_endpoints_require_authentication()
+    {
+        $this->getJson('/api/my/tasks')->assertStatus(401);
+        $this->getJson('/api/my/projects')->assertStatus(401);
+        $this->getJson('/api/my/teams')->assertStatus(401);
+    }
+
+    // Testes para endpoints de usuários específicos
+    public function test_can_get_user_tasks()
+    {
+        $targetUser = User::factory()->create();
+        $project = Project::factory()->create(['owner_id' => $targetUser->id]);
+        
+        // Criar tarefa criada pelo usuário alvo
+        $createdTask = Task::factory()->create([
+            'created_by' => $targetUser->id,
+            'project_id' => $project->id,
+        ]);
+        
+        // Criar tarefa atribuída ao usuário alvo
+        $assignedTask = Task::factory()->create([
+            'project_id' => $project->id,
+        ]);
+        $assignedTask->users()->attach($targetUser->id);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/tasks");
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'title',
+                        'description',
+                        'status',
+                        'priority',
+                        'project_id',
+                        'created_by',
+                        'due_date',
+                        'created_at',
+                        'updated_at',
+                    ]
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Verificar se ambas as tarefas estão na resposta
+        $taskIds = collect($response->json('data'))->pluck('id')->toArray();
+        $this->assertContains($createdTask->id, $taskIds);
+        $this->assertContains($assignedTask->id, $taskIds);
+    }
+
+    public function test_can_filter_user_tasks_by_status()
+    {
+        $targetUser = User::factory()->create();
+        $project = Project::factory()->create(['owner_id' => $targetUser->id]);
+        
+        Task::factory()->create([
+            'created_by' => $targetUser->id,
+            'project_id' => $project->id,
+            'status' => 'todo',
+        ]);
+        
+        Task::factory()->create([
+            'created_by' => $targetUser->id,
+            'project_id' => $project->id,
+            'status' => 'in_progress',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/tasks?status=todo");
+
+        $response->assertStatus(200);
+        
+        $tasks = $response->json('data');
+        $this->assertCount(1, $tasks);
+        $this->assertEquals('todo', $tasks[0]['status']);
+    }
+
+    public function test_can_filter_user_tasks_by_priority()
+    {
+        $targetUser = User::factory()->create();
+        $project = Project::factory()->create(['owner_id' => $targetUser->id]);
+        
+        Task::factory()->create([
+            'created_by' => $targetUser->id,
+            'project_id' => $project->id,
+            'priority' => 'high',
+        ]);
+        
+        Task::factory()->create([
+            'created_by' => $targetUser->id,
+            'project_id' => $project->id,
+            'priority' => 'low',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/tasks?priority=high");
+
+        $response->assertStatus(200);
+        
+        $tasks = $response->json('data');
+        $this->assertCount(1, $tasks);
+        $this->assertEquals('high', $tasks[0]['priority']);
+    }
+
+    public function test_can_get_user_projects()
+    {
+        $targetUser = User::factory()->create();
+        
+        // Criar projeto próprio do usuário alvo
+        $ownedProject = Project::factory()->create(['owner_id' => $targetUser->id]);
+        
+        // Criar projeto onde o usuário alvo é membro
+        $memberProject = Project::factory()->create();
+        $memberProject->users()->attach($targetUser->id);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/projects");
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'description',
+                        'status',
+                        'owner_id',
+                        'start_date',
+                        'end_date',
+                        'created_at',
+                        'updated_at',
+                    ]
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Verificar se ambos os projetos estão na resposta
+        $projectIds = collect($response->json('data'))->pluck('id')->toArray();
+        $this->assertContains($ownedProject->id, $projectIds);
+        $this->assertContains($memberProject->id, $projectIds);
+    }
+
+    public function test_can_filter_user_projects_by_status()
+    {
+        $targetUser = User::factory()->create();
+        
+        Project::factory()->create([
+            'owner_id' => $targetUser->id,
+            'status' => 'active',
+        ]);
+        
+        Project::factory()->create([
+            'owner_id' => $targetUser->id,
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/projects?status=active");
+
+        $response->assertStatus(200);
+        
+        $projects = $response->json('data');
+        $this->assertCount(1, $projects);
+        $this->assertEquals('active', $projects[0]['status']);
+    }
+
+    public function test_can_get_user_teams()
+    {
+        $targetUser = User::factory()->create();
+        
+        // Criar equipe própria do usuário alvo
+        $ownedTeam = Team::factory()->create(['owner_id' => $targetUser->id]);
+        
+        // Criar equipe onde o usuário alvo é membro
+        $memberTeam = Team::factory()->create();
+        $memberTeam->users()->attach($targetUser->id);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/teams");
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'description',
+                        'owner_id',
+                        'is_active',
+                        'created_at',
+                        'updated_at',
+                    ]
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Verificar se ambas as equipes estão na resposta
+        $teamIds = collect($response->json('data'))->pluck('id')->toArray();
+        $this->assertContains($ownedTeam->id, $teamIds);
+        $this->assertContains($memberTeam->id, $teamIds);
+    }
+
+    public function test_can_filter_user_teams_by_active_status()
+    {
+        $targetUser = User::factory()->create();
+        
+        Team::factory()->create([
+            'owner_id' => $targetUser->id,
+            'is_active' => true,
+        ]);
+        
+        Team::factory()->create([
+            'owner_id' => $targetUser->id,
+            'is_active' => false,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/users/{$targetUser->id}/teams?is_active=1");
+
+        $response->assertStatus(200);
+        
+        $teams = $response->json('data');
+        $this->assertCount(1, $teams);
+        $this->assertTrue($teams[0]['is_active']);
+    }
+
+    public function test_user_endpoints_require_authentication()
+    {
+        $targetUser = User::factory()->create();
+        
+        $this->getJson("/api/users/{$targetUser->id}/tasks")->assertStatus(401);
+        $this->getJson("/api/users/{$targetUser->id}/projects")->assertStatus(401);
+        $this->getJson("/api/users/{$targetUser->id}/teams")->assertStatus(401);
+    }
+
+    public function test_user_endpoints_return_404_for_nonexistent_user()
+    {
+        $nonExistentUserId = 99999;
+        
+        $this->actingAs($this->user)
+            ->getJson("/api/users/{$nonExistentUserId}/tasks")
+            ->assertStatus(404);
+            
+        $this->actingAs($this->user)
+            ->getJson("/api/users/{$nonExistentUserId}/projects")
+            ->assertStatus(404);
+            
+        $this->actingAs($this->user)
+            ->getJson("/api/users/{$nonExistentUserId}/teams")
+            ->assertStatus(404);
     }
 }

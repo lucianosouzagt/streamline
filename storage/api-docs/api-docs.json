@@ -2247,7 +2247,7 @@
                     "Users"
                 ],
                 "summary": "Atualizar perfil do usuário",
-                "description": "Atualiza as informações do perfil do usuário autenticado",
+                "description": "Atualiza as informações do perfil do usuário autenticado (exceto avatar)",
                 "operationId": "f5dfce3753e793253c65d12b593248a3",
                 "requestBody": {
                     "required": true,
@@ -2264,6 +2264,21 @@
                                         "type": "string",
                                         "format": "email",
                                         "example": "joao@exemplo.com"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "maxLength": 20,
+                                        "example": "+55 11 99999-9999"
+                                    },
+                                    "position": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "Desenvolvedor Full Stack"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "example": "Desenvolvedor experiente com foco em Laravel e Vue.js"
                                     }
                                 },
                                 "type": "object"
@@ -2384,6 +2399,78 @@
                     },
                     "422": {
                         "description": "Dados inválidos ou senha atual incorreta",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/users/avatar": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Atualizar avatar do usuário",
+                "description": "Faz upload e atualiza o avatar do usuário autenticado",
+                "operationId": "46c4aaa9af5e7cebc37c5adfeb202d30",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "avatar"
+                                ],
+                                "properties": {
+                                    "avatar": {
+                                        "description": "Arquivo de imagem do avatar (JPG, PNG, GIF, máximo 2MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Avatar atualizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/User"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "422": {
+                        "description": "Dados inválidos",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2574,36 +2661,51 @@
                 ]
             }
         },
-        "/api/user/projects": {
+        "/api/my/projects": {
             "get": {
                 "tags": [
-                    "Users"
+                    "User"
                 ],
-                "summary": "Meus projetos",
-                "description": "Lista todos os projetos do usuário autenticado",
-                "operationId": "9a74a5f740bcaad430f7c1f93d1fa06c",
+                "summary": "Listar projetos do usuário",
+                "description": "Lista todos os projetos que o usuário possui ou é membro",
+                "operationId": "b30e6338035de2cdc090f69f55701159",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filtrar por status do projeto",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "planning",
+                                "active",
+                                "on_hold",
+                                "completed",
+                                "cancelled"
+                            ]
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Lista de projetos do usuário",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/ApiResponse"
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
                                         },
-                                        {
-                                            "properties": {
-                                                "data": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Project"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Project"
+                                            }
                                         }
-                                    ]
+                                    },
+                                    "type": "object"
                                 }
                             }
                         }
@@ -2614,41 +2716,49 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
         },
-        "/api/user/teams": {
+        "/api/my/teams": {
             "get": {
                 "tags": [
-                    "Users"
+                    "User"
                 ],
-                "summary": "Meus times",
-                "description": "Lista todos os times do usuário autenticado",
-                "operationId": "ff626a465557a3a8c9ba1353019603ed",
+                "summary": "Listar equipes do usuário",
+                "description": "Lista todas as equipes que o usuário possui ou é membro",
+                "operationId": "6c1937de9bb936510da8396562388e53",
+                "parameters": [
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "description": "Filtrar por status da equipe",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Lista de times do usuário",
+                        "description": "Lista de equipes do usuário",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/ApiResponse"
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
                                         },
-                                        {
-                                            "properties": {
-                                                "data": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Team"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Team"
+                                            }
                                         }
-                                    ]
+                                    },
+                                    "type": "object"
                                 }
                             }
                         }
@@ -2659,7 +2769,306 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/my/tasks": {
+            "get": {
+                "tags": [
+                    "User"
+                ],
+                "summary": "Listar tarefas do usuário",
+                "description": "Lista todas as tarefas criadas pelo usuário ou atribuídas a ele",
+                "operationId": "28099422b3dd49e97ddf5cae781d588b",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filtrar por status da tarefa",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "todo",
+                                "in_progress",
+                                "review",
+                                "done",
+                                "cancelled"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "priority",
+                        "in": "query",
+                        "description": "Filtrar por prioridade da tarefa",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "low",
+                                "medium",
+                                "high",
+                                "urgent"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de tarefas do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Task"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/tasks": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Listar tarefas de um usuário específico",
+                "description": "Lista todas as tarefas criadas por ou atribuídas a um usuário específico",
+                "operationId": "b792205b0a5627cbbe6956afe0e1473f",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "description": "ID do usuário",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filtrar por status da tarefa",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "todo",
+                                "in_progress",
+                                "review",
+                                "done",
+                                "cancelled"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "priority",
+                        "in": "query",
+                        "description": "Filtrar por prioridade da tarefa",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "low",
+                                "medium",
+                                "high",
+                                "urgent"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de tarefas do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Task"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/projects": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Listar projetos de um usuário específico",
+                "description": "Lista todos os projetos que um usuário específico possui ou é membro",
+                "operationId": "5150d68bed47b1927b9dc4d12e279b48",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "description": "ID do usuário",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filtrar por status do projeto",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "planning",
+                                "active",
+                                "on_hold",
+                                "completed",
+                                "cancelled"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de projetos do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Project"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/teams": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Listar equipes de um usuário específico",
+                "description": "Lista todas as equipes que um usuário específico possui ou é membro",
+                "operationId": "ac8cecf1821aca2e3c4e62a57fa16ae3",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "description": "ID do usuário",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "description": "Filtrar por status da equipe",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de equipes do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Team"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2687,6 +3096,26 @@
                     "email_verified_at": {
                         "type": "string",
                         "format": "date-time",
+                        "nullable": true
+                    },
+                    "avatar": {
+                        "type": "string",
+                        "example": "https://example.com/avatar.jpg",
+                        "nullable": true
+                    },
+                    "phone": {
+                        "type": "string",
+                        "example": "+55 11 99999-9999",
+                        "nullable": true
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "Desenvolvedor Full Stack",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Desenvolvedor experiente com foco em Laravel e Vue.js",
                         "nullable": true
                     },
                     "created_at": {
@@ -2953,6 +3382,10 @@
         {
             "name": "Teams",
             "description": "Gerenciamento de equipes"
+        },
+        {
+            "name": "User",
+            "description": "User"
         }
     ]
 }
