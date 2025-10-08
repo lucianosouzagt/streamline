@@ -225,6 +225,92 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Post(
+     *     path="/api/users",
+     *     tags={"Users"},
+     *     summary="Criar usuário",
+     *     description="Cria um novo usuário no sistema (requer permissão users.create)",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="name", type="string", example="João Silva", description="Nome do usuário"),
+     *             @OA\Property(property="email", type="string", format="email", example="joao@exemplo.com", description="Email do usuário"),
+     *             @OA\Property(property="password", type="string", example="senha123", description="Senha do usuário"),
+     *             @OA\Property(property="password_confirmation", type="string", example="senha123", description="Confirmação da senha"),
+     *             @OA\Property(property="role", type="string", example="member", description="Role inicial do usuário (opcional)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Usuário criado com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/User")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Sem permissão para criar usuários"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
+     * Cria um novo usuário
+     */
+    public function store(Request $request): JsonResponse
+    {
+        // Verificar permissão
+        if (!Auth::user()->hasPermission('users.create')) {
+            return $this->forbiddenResponse('Você não tem permissão para criar usuários');
+        }
+
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:8|confirmed',
+                'role' => 'nullable|string|exists:roles,name',
+            ]);
+
+            // Criar o usuário
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'email_verified_at' => now(), // Auto-verificar email para usuários criados por administradores
+            ]);
+
+            // Atribuir role se especificada
+            if (isset($validated['role'])) {
+                $role = \App\Models\Role::where('name', $validated['role'])->first();
+                if ($role) {
+                    $user->roles()->attach($role->id);
+                }
+            }
+
+            // Carregar relacionamentos para resposta
+            $user->load('roles');
+
+            // Limpar cache relacionado
+            $this->clearUserCache(Auth::id());
+
+            return $this->successResponse($user, 'Usuário criado com sucesso', 201);
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e->errors());
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse('Erro interno ao criar usuário');
+        }
+    }
+
+    /**
      * @OA\Get(
      *     path="/api/users/{id}",
      *     tags={"Users"},
@@ -260,7 +346,83 @@ class UserController extends Controller
      */
     public function show(User $user): JsonResponse
     {
-        return $this->successResponse($user->only(['id', 'name', 'email', 'created_at', 'updated_at']));
+        return $this->successResponse($user->only(['id', 'name', 'email', 'created_at', 'updated_at']), 'Usuário encontrado com sucesso');
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/users/{user}",
+     *     tags={"Users"},
+     *     summary="Excluir usuário",
+     *     description="Remove um usuário do sistema (requer permissão users.delete)",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="user",
+     *         in="path",
+     *         description="ID do usuário",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Usuário excluído com sucesso",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Sem permissão para excluir usuários"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Usuário não encontrado"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Não é possível excluir usuário com dados associados"
+     *     )
+     * )
+     * 
+     * Exclui um usuário
+     */
+    public function destroy(User $user): JsonResponse
+    {
+        // Não permitir excluir o próprio usuário (verificar primeiro)
+        if ($user->id === Auth::id()) {
+            return $this->errorResponse('Você não pode excluir sua própria conta', 403);
+        }
+
+        // Verificar permissão
+        if (!Auth::user()->hasPermission('users.delete')) {
+            return $this->forbiddenResponse('Você não tem permissão para excluir usuários');
+        }
+
+        // Verificar se o usuário possui equipes como dono
+        if ($user->ownedTeams()->count() > 0) {
+            return $this->errorResponse('Não é possível excluir usuário que possui equipes como dono', 422);
+        }
+
+        // Verificar se o usuário possui projetos como dono
+        if ($user->ownedProjects()->count() > 0) {
+            return $this->errorResponse('Não é possível excluir usuário que possui projetos como dono', 422);
+        }
+
+        try {
+            // Remover relacionamentos antes de excluir
+            $user->teams()->detach();
+            $user->projects()->detach();
+            $user->tasks()->detach();
+            $user->roles()->detach();
+
+            // Limpar cache relacionado antes da exclusão
+            $this->clearUserCache($user->id);
+            $this->clearUserCache(Auth::id());
+
+            $user->delete();
+
+            return $this->successResponse(null, 'Usuário excluído com sucesso');
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse('Erro interno ao excluir usuário');
+        }
     }
 
     /**

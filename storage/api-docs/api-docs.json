@@ -1807,6 +1807,246 @@
                 ]
             }
         },
+        "/api/teams/{id}/users": {
+            "post": {
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Criar usuário para equipe",
+                "description": "Cria um novo usuário e o adiciona à equipe (requer permissão users.create)",
+                "operationId": "046f35cb50c11c235d15d96e1ee2e15f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da equipe",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "João Silva"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "joao@exemplo.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "senha123"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "example": "senha123"
+                                    },
+                                    "role": {
+                                        "description": "Papel a ser atribuído (admin, manager, member)",
+                                        "type": "string",
+                                        "example": "member",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuário criado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "email": {
+                                                            "type": "string"
+                                                        },
+                                                        "created_at": {
+                                                            "type": "string",
+                                                            "format": "date-time"
+                                                        },
+                                                        "roles": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "object"
+                                                            }
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado - sem permissão ou não é dono da equipe"
+                    },
+                    "422": {
+                        "description": "Dados de validação inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/teams/{id}/members": {
+            "post": {
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Adicionar membro à equipe",
+                "description": "Adiciona um usuário existente como membro da equipe (requer ser dono da equipe ou permissão teams.manage_members)",
+                "operationId": "f6c5f3d3cadae81f5d969f2385fabb30",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da equipe",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "user_id": {
+                                        "description": "ID do usuário a ser adicionado",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "role": {
+                                        "description": "Role do usuário na equipe (opcional)",
+                                        "type": "string",
+                                        "example": "member"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Membro adicionado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão para gerenciar membros da equipe"
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado"
+                    },
+                    "409": {
+                        "description": "Usuário já é membro da equipe"
+                    },
+                    "422": {
+                        "description": "Dados de validação inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/teams/{id}/members/{user}": {
+            "delete": {
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Remover membro da equipe",
+                "description": "Remove um usuário da equipe (requer ser dono da equipe ou permissão teams.manage_members)",
+                "operationId": "9c017613f78718759a722b9996fd1470",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da equipe",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "description": "ID do usuário a ser removido",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Membro removido com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão para gerenciar membros da equipe"
+                    },
+                    "404": {
+                        "description": "Usuário não é membro da equipe"
+                    },
+                    "422": {
+                        "description": "Não é possível remover o dono da equipe"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/users": {
             "get": {
                 "tags": [
@@ -1871,6 +2111,87 @@
                     },
                     "401": {
                         "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Criar usuário",
+                "description": "Cria um novo usuário no sistema (requer permissão users.create)",
+                "operationId": "be551c1d694a01c164966f58bfa77013",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "description": "Nome do usuário",
+                                        "type": "string",
+                                        "example": "João Silva"
+                                    },
+                                    "email": {
+                                        "description": "Email do usuário",
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "joao@exemplo.com"
+                                    },
+                                    "password": {
+                                        "description": "Senha do usuário",
+                                        "type": "string",
+                                        "example": "senha123"
+                                    },
+                                    "password_confirmation": {
+                                        "description": "Confirmação da senha",
+                                        "type": "string",
+                                        "example": "senha123"
+                                    },
+                                    "role": {
+                                        "description": "Role inicial do usuário (opcional)",
+                                        "type": "string",
+                                        "example": "member"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Usuário criado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/User"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão para criar usuários"
+                    },
+                    "422": {
+                        "description": "Dados de validação inválidos"
                     }
                 },
                 "security": [
@@ -2123,6 +2444,53 @@
                     },
                     "404": {
                         "description": "Usuário não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}": {
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Excluir usuário",
+                "description": "Remove um usuário do sistema (requer permissão users.delete)",
+                "operationId": "cf641f0b739211ff3a1c21b1ef310591",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "description": "ID do usuário",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Usuário excluído com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Sem permissão para excluir usuários"
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado"
+                    },
+                    "422": {
+                        "description": "Não é possível excluir usuário com dados associados"
                     }
                 },
                 "security": [

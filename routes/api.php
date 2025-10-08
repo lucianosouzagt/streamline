@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rotas de usuários
     Route::prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index']);
+        Route::post('/', [UserController::class, 'store'])->middleware('permission:users.create');
         Route::get('/profile', [UserController::class, 'profile']);
         Route::put('/profile', [UserController::class, 'updateProfile']);
         Route::put('/password', [UserController::class, 'updatePassword']);
@@ -40,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/tasks', [UserController::class, 'myTasks']);
         Route::delete('/account', [UserController::class, 'deleteAccount']);
         Route::get('/{user}', [UserController::class, 'show']);
+        Route::delete('/{user}', [UserController::class, 'destroy'])->middleware('permission:users.delete');
 
         // Gerenciamento de roles
         Route::post('/roles/list', [UserController::class, 'getRoles']);
@@ -52,12 +54,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [TeamController::class, 'index']);
         Route::post('/', [TeamController::class, 'store']);
         Route::get('/{team}', [TeamController::class, 'show']);
-        Route::put('/{team}', [TeamController::class, 'update']);
-        Route::delete('/{team}', [TeamController::class, 'destroy']);
+        Route::put('/{team}', [TeamController::class, 'update'])->middleware('permission:teams.update');
+        Route::delete('/{team}', [TeamController::class, 'destroy'])->middleware('permission:teams.delete');
 
-        // Gerenciamento de projetos no time
-        Route::post('/{team}/projects', [TeamController::class, 'addProject']);
-        Route::delete('/{team}/projects', [TeamController::class, 'removeProject']);
+        // Gerenciamento de projetos da equipe
+        Route::post('/{team}/projects', [TeamController::class, 'addProject'])->middleware('permission:teams.manage_projects');
+        Route::delete('/{team}/projects/{project}', [TeamController::class, 'removeProject'])->middleware('permission:teams.manage_projects');
+
+        // Gerenciamento de usuários da equipe
+        Route::post('/{team}/users', [TeamController::class, 'store'])->middleware('permission:teams.manage_users');
+        Route::post('/{team}/members', [TeamController::class, 'addMember'])->middleware('permission:teams.manage_users');
+        Route::delete('/{team}/members/{user}', [TeamController::class, 'removeMember'])->middleware('permission:teams.manage_users');
     });
 
     // Rotas de projetos

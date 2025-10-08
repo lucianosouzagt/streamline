@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Registrar middleware customizado de CSRF
         $middleware->alias([
             'csrf' => \App\Http\Middleware\VerifyCsrfToken::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
         ]);
 
         // Para APIs, configuramos o middleware de autenticação

@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CreateUserRequest;
 use App\Http\Traits\ApiResponseTrait;
 use App\Http\Traits\CacheableTrait;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Team;
+use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class TeamController extends Controller
@@ -479,6 +483,258 @@ class TeamController extends Controller
             return $this->successResponse(null, 'Projeto removido do time com sucesso');
         } catch (ValidationException $e) {
             return $this->validationErrorResponse($e->errors());
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/teams/{id}/users",
+     *     tags={"Teams"},
+     *     summary="Criar usuário para equipe",
+     *     description="Cria um novo usuário e o adiciona à equipe (requer permissão users.create)",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID da equipe",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="name", type="string", example="João Silva"),
+     *             @OA\Property(property="email", type="string", format="email", example="joao@exemplo.com"),
+     *             @OA\Property(property="password", type="string", example="senha123"),
+     *             @OA\Property(property="password_confirmation", type="string", example="senha123"),
+     *             @OA\Property(property="role", type="string", nullable=true, example="member", description="Papel a ser atribuído (admin, manager, member)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Usuário criado com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="data",
+     *                         type="object",
+     *                         @OA\Property(property="id", type="integer"),
+     *                         @OA\Property(property="name", type="string"),
+     *                         @OA\Property(property="email", type="string"),
+     *                         @OA\Property(property="created_at", type="string", format="date-time"),
+     *                         @OA\Property(property="roles", type="array", @OA\Items(type="object"))
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Acesso negado - sem permissão ou não é dono da equipe"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
+     * Cria um novo usuário para a equipe
+     */
+    public function createUser(CreateUserRequest $request, Team $team): JsonResponse
+    {
+        // Verificar se é o dono da equipe ou tem permissão de gerenciar equipes
+        if ($team->owner_id !== Auth::id() && !Auth::user()->hasPermission('teams.edit')) {
+            return $this->forbiddenResponse('Apenas o dono da equipe pode adicionar usuários');
+        }
+
+        try {
+            $validated = $request->validated();
+
+            // Criar o usuário
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'email_verified_at' => now(), // Auto-verificar email para usuários criados por administradores
+            ]);
+
+            // Atribuir role se especificada
+            $roleName = $validated['role'] ?? 'member';
+            $role = Role::where('name', $roleName)->first();
+            
+            if ($role) {
+                $user->roles()->attach($role->id);
+            }
+
+            // Carregar relacionamentos para resposta
+            $user->load('roles');
+
+            // Limpar cache relacionado
+            $this->clearUserCache(Auth::id());
+
+            return $this->successResponse($user, 'Usuário criado com sucesso para a equipe', 201);
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse('Erro interno ao criar usuário');
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/teams/{id}/members",
+     *     tags={"Teams"},
+     *     summary="Adicionar membro à equipe",
+     *     description="Adiciona um usuário existente como membro da equipe (requer ser dono da equipe ou permissão teams.manage_members)",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID da equipe",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="user_id", type="integer", example=1, description="ID do usuário a ser adicionado"),
+     *             @OA\Property(property="role", type="string", example="member", description="Role do usuário na equipe (opcional)")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Membro adicionado com sucesso",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Sem permissão para gerenciar membros da equipe"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Usuário não encontrado"
+     *     ),
+     *     @OA\Response(
+     *         response=409,
+     *         description="Usuário já é membro da equipe"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados de validação inválidos"
+     *     )
+     * )
+     * 
+     * Adiciona um membro à equipe
+     */
+    public function addMember(Request $request, Team $team): JsonResponse
+    {
+        // Verificar permissões
+        if ($team->owner_id !== Auth::id() && !Auth::user()->hasPermission('teams.manage_members')) {
+            return $this->forbiddenResponse('Você não tem permissão para gerenciar membros desta equipe');
+        }
+
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'role' => 'nullable|string|in:member,admin,manager',
+            ]);
+
+            $user = User::find($validated['user_id']);
+            if (!$user) {
+                return $this->notFoundResponse('Usuário não encontrado');
+            }
+
+            // Verificar se o usuário já é membro da equipe
+            if ($team->users()->where('user_id', $validated['user_id'])->exists()) {
+                return $this->errorResponse('Usuário já é membro desta equipe', 409);
+            }
+
+            // Adicionar o usuário à equipe
+            $role = $validated['role'] ?? 'member';
+            $team->users()->attach($validated['user_id'], ['role' => $role]);
+
+            // Limpar cache relacionado
+            $this->clearUserCache(Auth::id());
+            $this->clearUserCache($validated['user_id']);
+
+            return $this->successResponse(null, 'Membro adicionado à equipe com sucesso');
+        } catch (ValidationException $e) {
+            return $this->validationErrorResponse($e->errors());
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse('Erro interno ao adicionar membro à equipe');
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/teams/{id}/members/{user}",
+     *     tags={"Teams"},
+     *     summary="Remover membro da equipe",
+     *     description="Remove um usuário da equipe (requer ser dono da equipe ou permissão teams.manage_members)",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID da equipe",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="user",
+     *         in="path",
+     *         description="ID do usuário a ser removido",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Membro removido com sucesso",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="Sem permissão para gerenciar membros da equipe"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Usuário não é membro da equipe"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Não é possível remover o dono da equipe"
+     *     )
+     * )
+     * 
+     * Remove um membro da equipe
+     */
+    public function removeMember(Team $team, User $user): JsonResponse
+    {
+        // Verificar permissões
+        if ($team->owner_id !== Auth::id() && !Auth::user()->hasPermission('teams.manage_members')) {
+            return $this->forbiddenResponse('Você não tem permissão para gerenciar membros desta equipe');
+        }
+
+        // Não permitir remover o dono da equipe
+        if ($team->owner_id === $user->id) {
+            return $this->errorResponse('Não é possível remover o dono da equipe', 422);
+        }
+
+        // Verificar se o usuário é membro da equipe
+        if (!$team->users()->where('user_id', $user->id)->exists()) {
+            return $this->notFoundResponse('Usuário não é membro desta equipe');
+        }
+
+        try {
+            // Remover o usuário da equipe
+            $team->users()->detach($user->id);
+
+            // Limpar cache relacionado
+            $this->clearUserCache(Auth::id());
+            $this->clearUserCache($user->id);
+
+            return $this->successResponse(null, 'Membro removido da equipe com sucesso');
+        } catch (\Exception $e) {
+            return $this->internalErrorResponse('Erro interno ao remover membro da equipe');
         }
     }
 }
