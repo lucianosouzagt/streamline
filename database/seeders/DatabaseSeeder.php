@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Role;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -18,10 +19,15 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $adminUser = User::factory()->create([
+            'name' => 'Admin',
+            'email' => 'admin@streamline.com.br',
         ]);
+
+        // Atribuir role admin ao usuário de teste (ID 1)
+        $adminRole = Role::where('name', 'admin')->first();
+        if ($adminRole) {
+            $adminUser->roles()->attach($adminRole->id);
+        }
     }
 }

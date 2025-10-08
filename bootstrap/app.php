@@ -29,4 +29,82 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 401);
             }
         });
+
+        // Tratamento para ModelNotFoundException em rotas API
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
+            if ($request->is('api/*')) {
+                $model = $e->getModel();
+                $modelName = class_basename($model);
+                
+                $messages = [
+                    'Team' => 'Time não encontrado',
+                    'Project' => 'Projeto não encontrado',
+                    'Task' => 'Tarefa não encontrada',
+                    'User' => 'Usuário não encontrado',
+                ];
+                
+                $message = $messages[$modelName] ?? 'Recurso não encontrado';
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'error' => 'O recurso solicitado não existe no sistema',
+                    'resource' => strtolower($modelName)
+                ], 404);
+            }
+        });
+
+        // Tratamento para NotFoundHttpException em rotas API
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                // Verificar se a mensagem contém informações sobre modelo
+                $message = $e->getMessage();
+                if (preg_match('/No query results for model \[App\\\\Models\\\\(\w+)\]/', $message, $matches)) {
+                    $modelName = $matches[1];
+                    $messages = [
+                        'Team' => 'Time não encontrado',
+                        'Project' => 'Projeto não encontrado',
+                        'Task' => 'Tarefa não encontrada',
+                        'User' => 'Usuário não encontrado',
+                    ];
+                    
+                    $customMessage = $messages[$modelName] ?? 'Recurso não encontrado';
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => $customMessage,
+                        'error' => 'O recurso solicitado não existe no sistema',
+                        'resource' => strtolower($modelName)
+                    ], 404);
+                }
+                
+                // Para outras exceções 404
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Recurso não encontrado',
+                    'error' => 'A rota ou recurso solicitado não existe'
+                ], 404);
+            }
+        });
+
+        // Tratamento para ValidationException em rotas API
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dados inválidos',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+        });
+
+        // Tratamento para AuthorizationException em rotas API
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+            if ($request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acesso negado'
+                ], 403);
+            }
+        });
     })->create();

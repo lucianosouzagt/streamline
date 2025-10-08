@@ -1097,6 +1097,77 @@ Muitos endpoints suportam filtros via query parameters:
 - `?sort=created_at`: Ordenar por campo
 - `?order=desc`: Direção da ordenação
 
+## Códigos de Erro Padronizados
+
+A API retorna respostas JSON consistentes para todos os tipos de erro:
+
+### 400 - Bad Request
+```json
+{
+    "success": false,
+    "message": "Requisição inválida",
+    "error": "Descrição específica do erro"
+}
+```
+
+### 401 - Não Autenticado
+```json
+{
+    "message": "Unauthenticated."
+}
+```
+
+### 403 - Acesso Negado
+```json
+{
+    "success": false,
+    "message": "Acesso negado"
+}
+```
+
+### 404 - Recurso Não Encontrado
+Para recursos específicos (Team, Project, Task, User):
+```json
+{
+    "success": false,
+    "message": "Time não encontrado",
+    "error": "O recurso solicitado não existe no sistema",
+    "resource": "team"
+}
+```
+
+Para rotas não encontradas:
+```json
+{
+    "success": false,
+    "message": "Recurso não encontrado",
+    "error": "A rota ou recurso solicitado não existe"
+}
+```
+
+### 422 - Dados Inválidos (Validação)
+```json
+{
+    "success": false,
+    "message": "Dados inválidos",
+    "errors": {
+        "name": ["The name field is required."],
+        "email": ["The email must be a valid email address."]
+    }
+}
+```
+
+### 500 - Erro Interno do Servidor
+```json
+{
+    "success": false,
+    "message": "Erro interno do servidor",
+    "error": "Ocorreu um erro inesperado"
+}
+```
+
+**Nota:** Em modo de debug (`APP_DEBUG=true`), o campo `error` pode conter informações detalhadas sobre a exceção para facilitar o desenvolvimento.
+
 ## Rate Limiting
 
 A API implementa rate limiting para prevenir abuso:
