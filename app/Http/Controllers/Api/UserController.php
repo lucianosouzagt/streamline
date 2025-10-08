@@ -99,6 +99,43 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Put(
+     *     path="/api/user/profile",
+     *     tags={"Users"},
+     *     summary="Atualizar perfil do usuário",
+     *     description="Atualiza as informações do perfil do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="name", type="string", maxLength=255, example="João Silva"),
+     *             @OA\Property(property="email", type="string", format="email", example="joao@exemplo.com")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Perfil atualizado com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/User")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados inválidos",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
+     * 
      * Atualiza o perfil do usuário
      */
     public function updateProfile(Request $request): JsonResponse
@@ -122,6 +159,45 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Put(
+     *     path="/api/user/password",
+     *     tags={"Users"},
+     *     summary="Atualizar senha do usuário",
+     *     description="Atualiza a senha do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             type="object",
+     *             required={"current_password", "password", "password_confirmation"},
+     *             @OA\Property(property="current_password", type="string", format="password", example="senhaAtual123"),
+     *             @OA\Property(property="password", type="string", format="password", minLength=8, example="novaSenha123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="novaSenha123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Senha atualizada com sucesso",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", type="null")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Dados inválidos ou senha atual incorreta",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
+     * 
      * Atualiza a senha do usuário
      */
     public function updatePassword(Request $request): JsonResponse
