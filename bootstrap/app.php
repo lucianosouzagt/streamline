@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Para rotas web, redireciona para login
         $middleware->redirectGuestsTo('/login');
 
+        // Registrar middleware customizado de CSRF
+        $middleware->alias([
+            'csrf' => \App\Http\Middleware\VerifyCsrfToken::class,
+        ]);
+
         // Para APIs, configuramos o middleware de autenticação
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
