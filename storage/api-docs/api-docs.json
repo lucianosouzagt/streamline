@@ -437,6 +437,423 @@
                 ]
             }
         },
+        "/api/tasks/{id}": {
+            "get": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Exibir tarefa",
+                "description": "Exibe uma tarefa específica",
+                "operationId": "32c40e2d1129b80c1dcabd538df63a33",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da tarefa",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tarefa encontrada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/Task"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado"
+                    },
+                    "404": {
+                        "description": "Tarefa não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Atualizar tarefa",
+                "description": "Atualiza uma tarefa existente",
+                "operationId": "c36c959b634c99e1e02ad2f3f2c36a2c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da tarefa",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Implementar autenticação atualizada"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Implementar sistema de login e registro com 2FA",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "todo",
+                                            "in_progress",
+                                            "review",
+                                            "done",
+                                            "cancelled"
+                                        ],
+                                        "example": "in_progress"
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "low",
+                                            "medium",
+                                            "high",
+                                            "urgent"
+                                        ],
+                                        "example": "high"
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "assigned_users": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2,
+                                            3
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tarefa atualizada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/Task"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado"
+                    },
+                    "422": {
+                        "description": "Dados de validação inválidos",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Excluir tarefa",
+                "description": "Remove uma tarefa do sistema",
+                "operationId": "d81cc7975ea62176b4ef8f74ed95168d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da tarefa",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tarefa excluída com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado"
+                    },
+                    "404": {
+                        "description": "Tarefa não encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/tasks/status/{status}": {
+            "get": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Listar tarefas por status",
+                "description": "Lista todas as tarefas do usuário filtradas por status",
+                "operationId": "7c4ad488631bf3a5c895340de3577c9c",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "path",
+                        "description": "Status das tarefas",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "todo",
+                                "in_progress",
+                                "review",
+                                "done",
+                                "cancelled"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de tarefas por status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Task"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Status inválido"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/tasks/{id}/assign": {
+            "post": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Atribuir usuário à tarefa",
+                "description": "Atribui um usuário a uma tarefa específica",
+                "operationId": "133c0d9aaf085518e2deba1787b4fce4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da tarefa",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "example": "assignee",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Usuário atribuído com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado"
+                    },
+                    "409": {
+                        "description": "Usuário já está atribuído à tarefa"
+                    },
+                    "422": {
+                        "description": "Dados de validação inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/tasks/{id}/unassign": {
+            "delete": {
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Remover usuário da tarefa",
+                "description": "Remove a atribuição de um usuário de uma tarefa específica",
+                "operationId": "eac83f8cc3c90c30aac003f641ddfcf1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID da tarefa",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Usuário removido da tarefa com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acesso negado"
+                    },
+                    "404": {
+                        "description": "Usuário não está atribuído à tarefa"
+                    },
+                    "422": {
+                        "description": "Dados de validação inválidos"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/teams": {
             "get": {
                 "tags": [
@@ -624,6 +1041,223 @@
                     }
                 ]
             }
+        },
+        "/api/users/{id}": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Exibir usuário",
+                "description": "Exibe informações de um usuário específico",
+                "operationId": "6f51bd5fa2dddcd25e44cfa53dcbd10a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID do usuário",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Usuário encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/User"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/user/dashboard": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Dashboard do usuário",
+                "description": "Retorna estatísticas e dados recentes do usuário autenticado",
+                "operationId": "f31a77dd7e2a88e5f61cad68de57e228",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "properties": {
+                                                        "projects_count": {
+                                                            "type": "integer",
+                                                            "example": 5
+                                                        },
+                                                        "teams_count": {
+                                                            "type": "integer",
+                                                            "example": 3
+                                                        },
+                                                        "tasks_count": {
+                                                            "type": "integer",
+                                                            "example": 12
+                                                        },
+                                                        "recent_projects": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/Project"
+                                                            }
+                                                        },
+                                                        "recent_teams": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/Team"
+                                                            }
+                                                        },
+                                                        "recent_tasks": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/Task"
+                                                            }
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/user/projects": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Meus projetos",
+                "description": "Lista todos os projetos do usuário autenticado",
+                "operationId": "9a74a5f740bcaad430f7c1f93d1fa06c",
+                "responses": {
+                    "200": {
+                        "description": "Lista de projetos do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Project"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/user/teams": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Meus times",
+                "description": "Lista todos os times do usuário autenticado",
+                "operationId": "ff626a465557a3a8c9ba1353019603ed",
+                "responses": {
+                    "200": {
+                        "description": "Lista de times do usuário",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiResponse"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Team"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -774,7 +1408,7 @@
                         "type": "integer",
                         "example": 1
                     },
-                    "creator_id": {
+                    "created_by": {
                         "type": "integer",
                         "example": 1
                     },

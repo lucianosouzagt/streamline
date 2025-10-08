@@ -149,6 +149,37 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/users/{id}",
+     *     tags={"Users"},
+     *     summary="Exibir usuário",
+     *     description="Exibe informações de um usuário específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID do usuário",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Usuário encontrado",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(property="data", ref="#/components/schemas/User")
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Usuário não encontrado"
+     *     )
+     * )
+     * 
      * Exibe um usuário específico
      */
     public function show(User $user): JsonResponse
@@ -157,6 +188,51 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/user/dashboard",
+     *     tags={"Users"},
+     *     summary="Dashboard do usuário",
+     *     description="Retorna estatísticas e dados recentes do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dashboard do usuário",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="data",
+     *                         type="object",
+     *                         @OA\Property(property="projects_count", type="integer", example=5),
+     *                         @OA\Property(property="teams_count", type="integer", example=3),
+     *                         @OA\Property(property="tasks_count", type="integer", example=12),
+     *                         @OA\Property(
+     *                             property="recent_projects",
+     *                             type="array",
+     *                             @OA\Items(ref="#/components/schemas/Project")
+     *                         ),
+     *                         @OA\Property(
+     *                             property="recent_teams",
+     *                             type="array",
+     *                             @OA\Items(ref="#/components/schemas/Team")
+     *                         ),
+     *                         @OA\Property(
+     *                             property="recent_tasks",
+     *                             type="array",
+     *                             @OA\Items(ref="#/components/schemas/Task")
+     *                         )
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     )
+     * )
+     * 
      * Dashboard do usuário com estatísticas
      */
     public function dashboard(): JsonResponse
@@ -181,6 +257,34 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/user/projects",
+     *     tags={"Users"},
+     *     summary="Meus projetos",
+     *     description="Lista todos os projetos do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de projetos do usuário",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="data",
+     *                         type="array",
+     *                         @OA\Items(ref="#/components/schemas/Project")
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     )
+     * )
+     * 
      * Lista projetos do usuário
      */
     public function myProjects(): JsonResponse
@@ -193,6 +297,34 @@ class UserController extends Controller
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/user/teams",
+     *     tags={"Users"},
+     *     summary="Meus times",
+     *     description="Lista todos os times do usuário autenticado",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de times do usuário",
+     *         @OA\JsonContent(
+     *             allOf={
+     *                 @OA\Schema(ref="#/components/schemas/ApiResponse"),
+     *                 @OA\Schema(
+     *                     @OA\Property(
+     *                         property="data",
+     *                         type="array",
+     *                         @OA\Items(ref="#/components/schemas/Team")
+     *                     )
+     *                 )
+     *             }
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Não autenticado"
+     *     )
+     * )
+     * 
      * Lista times do usuário
      */
     public function myTeams(): JsonResponse
