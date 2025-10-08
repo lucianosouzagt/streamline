@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Project;
 use App\Models\Team;
 use App\Models\Task;
+use App\Models\Role;
+use App\Models\Permission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Hash;
@@ -21,9 +23,36 @@ class UserControllerTest extends TestCase
     {
         parent::setUp();
         
+        // Criar permissões básicas
+        $permissions = [
+            'users.view',
+            'users.create',
+            'users.edit',
+            'users.delete',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::create([
+                'name' => $permission,
+                'display_name' => ucfirst(str_replace('.', ' ', $permission)),
+                'description' => 'Permission to '.str_replace('.', ' ', $permission),
+                'resource' => explode('.', $permission)[0],
+                'action' => explode('.', $permission)[1] ?? 'manage',
+            ]);
+        }
+
+        // Criar role admin com todas as permissões
+        $adminRole = Role::create([
+            'name' => 'admin',
+            'display_name' => 'Administrator',
+            'description' => 'Full system access',
+        ]);
+        $adminRole->permissions()->attach(Permission::all());
+        
         $this->user = User::factory()->create([
             'password' => Hash::make('password123'),
         ]);
+        $this->user->roles()->attach($adminRole);
     }
 
     public function test_can_list_users()
@@ -194,14 +223,41 @@ class UserControllerTest extends TestCase
 
     public function test_can_show_user()
     {
-        $targetUser = User::factory()->create();
+        $user = User::factory()->create();
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/users/{$targetUser->id}");
+            ->getJson("/api/users/{$user->id}");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
                 'success',
+                'message',
+                'data' => [
+                    'id',
+                    'name',
+                    'email',
+                    'created_at',
+                    'updated_at',
+                ]
+            ]);
+    }
+
+    public function test_can_create_user()
+    {
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/users', $userData);
+
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'success',
+                'message',
                 'data' => [
                     'id',
                     'name',
@@ -212,12 +268,150 @@ class UserControllerTest extends TestCase
             ])
             ->assertJson([
                 'success' => true,
+                'message' => 'Usuário criado com sucesso',
                 'data' => [
-                    'id' => $targetUser->id,
-                    'name' => $targetUser->name,
-                    'email' => $targetUser->email,
+                    'name' => 'João Silva',
+                    'email' => 'joao@exemplo.com',
                 ]
             ]);
+
+        $this->assertDatabaseHas('users', [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+        ]);
+    }
+
+    public function test_cannot_create_user_with_existing_email()
+    {
+        $existingUser = User::factory()->create(['email' => 'joao@exemplo.com']);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/users', $userData);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => [
+                    'email'
+                ]
+            ]);
+    }
+
+    public function test_cannot_create_user_with_invalid_data()
+    {
+        $userData = [
+            'name' => '',
+            'email' => 'invalid-email',
+            'password' => '123',
+            'password_confirmation' => '456',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/users', $userData);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => [
+                    'name',
+                    'email',
+                    'password',
+                ]
+            ]);
+    }
+
+    public function test_can_delete_user()
+    {
+        $userToDelete = User::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->deleteJson("/api/users/{$userToDelete->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Usuário excluído com sucesso',
+            ]);
+
+        $this->assertDatabaseMissing('users', [
+            'id' => $userToDelete->id,
+        ]);
+    }
+
+    public function test_cannot_delete_nonexistent_user()
+    {
+        $response = $this->actingAs($this->user)
+            ->deleteJson('/api/users/99999');
+
+        $response->assertStatus(404);
+    }
+
+    public function test_cannot_delete_own_user()
+    {
+        $response = $this->actingAs($this->user)
+            ->deleteJson("/api/users/{$this->user->id}");
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Você não pode excluir sua própria conta',
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+        ]);
+    }
+
+    public function test_cannot_create_user_without_permission()
+    {
+        // Criar usuário sem permissão users.create
+        $userWithoutPermission = User::factory()->create();
+        $memberRole = Role::create([
+            'name' => 'member',
+            'display_name' => 'Member',
+            'description' => 'Basic member access',
+        ]);
+        $userWithoutPermission->roles()->attach($memberRole);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+        ];
+
+        $response = $this->actingAs($userWithoutPermission)
+            ->postJson('/api/users', $userData);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_cannot_delete_user_without_permission()
+    {
+        // Criar usuário sem permissão users.delete
+        $userWithoutPermission = User::factory()->create();
+        $memberRole = Role::create([
+            'name' => 'member',
+            'display_name' => 'Member',
+            'description' => 'Basic member access',
+        ]);
+        $userWithoutPermission->roles()->attach($memberRole);
+
+        $userToDelete = User::factory()->create();
+
+        $response = $this->actingAs($userWithoutPermission)
+            ->deleteJson("/api/users/{$userToDelete->id}");
+
+        $response->assertStatus(403);
     }
 
     public function test_can_get_dashboard_data()
@@ -353,10 +547,10 @@ class UserControllerTest extends TestCase
         $response = $this->getJson('/api/users/dashboard');
         $response->assertStatus(401);
 
-        $response = $this->getJson('/api/users/my-projects');
+        $response = $this->getJson('/api/users/projects');
         $response->assertStatus(401);
 
-        $response = $this->getJson('/api/users/my-teams');
+        $response = $this->getJson('/api/users/teams');
         $response->assertStatus(401);
     }
 }

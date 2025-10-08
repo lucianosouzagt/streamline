@@ -28,6 +28,9 @@ class TeamControllerTest extends TestCase
             'teams.update',
             'teams.delete',
             'teams.manage_projects',
+            'users.create',
+            'users.edit',
+            'users.delete',
         ];
 
         foreach ($permissions as $permission) {
@@ -361,5 +364,177 @@ class TeamControllerTest extends TestCase
                 'success' => false,
                 'message' => 'Projeto não está associado a este time',
             ]);
+    }
+
+    public function test_can_create_user_for_team()
+    {
+        $team = Team::factory()->create(['owner_id' => $this->user->id]);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+            'role' => 'member',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/teams/{$team->id}/users", $userData);
+
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'id',
+                    'name',
+                    'email',
+                    'roles',
+                ]
+            ])
+            ->assertJson([
+                'success' => true,
+                'message' => 'Usuário criado com sucesso para a equipe',
+                'data' => [
+                    'name' => $userData['name'],
+                    'email' => $userData['email'],
+                ]
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'name' => $userData['name'],
+            'email' => $userData['email'],
+        ]);
+    }
+
+    public function test_cannot_create_user_without_permission()
+    {
+        // Criar usuário sem permissão users.create
+        $userWithoutPermission = User::factory()->create();
+        $memberRole = Role::create([
+            'name' => 'member',
+            'display_name' => 'Member',
+            'description' => 'Basic member access',
+        ]);
+        $userWithoutPermission->roles()->attach($memberRole);
+
+        $team = Team::factory()->create(['owner_id' => $userWithoutPermission->id]);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+        ];
+
+        $response = $this->actingAs($userWithoutPermission)
+            ->postJson("/api/teams/{$team->id}/users", $userData);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_cannot_create_user_for_team_not_owned()
+    {
+        $otherUser = User::factory()->create();
+        $team = Team::factory()->create(['owner_id' => $otherUser->id]);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/teams/{$team->id}/users", $userData);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Apenas o dono da equipe pode adicionar usuários',
+            ]);
+    }
+
+    public function test_cannot_create_user_with_invalid_data()
+    {
+        $team = Team::factory()->create(['owner_id' => $this->user->id]);
+
+        $invalidData = [
+            'name' => '', // Nome vazio
+            'email' => 'invalid-email', // Email inválido
+            'password' => '123', // Senha muito curta
+            'password_confirmation' => '456', // Confirmação não confere
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/teams/{$team->id}/users", $invalidData);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors'
+            ])
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_cannot_create_user_with_duplicate_email()
+    {
+        $team = Team::factory()->create(['owner_id' => $this->user->id]);
+        $existingUser = User::factory()->create(['email' => 'joao@exemplo.com']);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com', // Email já existe
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/teams/{$team->id}/users", $userData);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors'
+            ])
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
+    public function test_creates_user_with_default_member_role()
+    {
+        $team = Team::factory()->create(['owner_id' => $this->user->id]);
+
+        // Criar role member se não existir
+        $memberRole = Role::firstOrCreate([
+            'name' => 'member'
+        ], [
+            'display_name' => 'Member',
+            'description' => 'Basic member access',
+        ]);
+
+        $userData = [
+            'name' => 'João Silva',
+            'email' => 'joao@exemplo.com',
+            'password' => 'senha123',
+            'password_confirmation' => 'senha123',
+            // Sem especificar role - deve usar 'member' como padrão
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/teams/{$team->id}/users", $userData);
+
+        $response->assertStatus(201);
+
+        $createdUser = User::where('email', $userData['email'])->first();
+        $this->assertTrue($createdUser->hasRole('member'));
     }
 }
